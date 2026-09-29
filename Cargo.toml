@@ -1,0 +1,12 @@
+[package]
+name = "falcon_diorama"
+version = "1.0.0"
+edition = "2024"
+description = "Diorama voxel con raytracing implementado en Rust estándar"
+
+[dependencies]
+raylib = { version = "6.0.0", features = ["SUPPORT_IMAGE_GENERATION"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
