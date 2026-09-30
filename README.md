@@ -71,20 +71,22 @@ El lanzador genera una app local en `target/Millennium Falcon.app`.
   En el modo Fluido, la resolución durante el movimiento es menor, especialmente
   cerca del vidrio.
 
-Medición de nitidez fija en Apple M1, modo release, todos los efectos activos:
+Comparación de CPU a 1200×644, todos los efectos activos y calidad interactiva:
 
-| Vista | Ancho fijo | Promedio CPU | Cuadros calculados/s |
+| Vista | Versión inicial | BVH optimizada | Reducción de tiempo |
 |---|---:|---:|---:|
-| Principal | 1200 px | 79.6 ms | 12.6 |
-| Cabina | 1200 px | 373.1 ms | 2.7 |
-| Principal | 2400 px | 302.5 ms | 3.3 |
-| Cabina | 2400 px | 1564.8 ms | 0.6 |
+| Principal | 115 ms | 70 ms | 39 % |
+| Cabina | 750 ms | 360 ms | 52 % |
 
-Una imagen de calentamiento y cuatro medidas por caso, alto proporcional al área
-visible de la ventana de 1200×800. Son tiempos de trazado, sin presentación en GPU;
-no garantizan los mismos FPS durante una exposición. Retina sirve para comparar
-nitidez, pero estas cifras no equivalen a movimiento fluido. Para recorrer la
-escena, 1200 es un compromiso; los acercamientos al vidrio favorecen el modo Fluido.
+Medianas de cuatro ejecuciones por versión, alternadas en el mismo Apple M1 para
+reducir el efecto de cambios de carga. La búsqueda optimizada utiliza una jerarquía
+construida por superficie y cantidad de bloques (SAH), índices de hojas contiguos,
+inversas de dirección precalculadas y distancias de cajas reutilizadas durante el
+recorrido. No reduce resolución, muestras, materiales ni profundidad de los rayos.
+
+Los tiempos corresponden al trazado en CPU, sin codificación PNG ni presentación.
+Varían con el encuadre y la carga del sistema. Las vistas del vidrio aún son
+costosas; Retina constante prioriza detalle y no garantiza movimiento fluido.
 
 ```sh
 cargo run --release --offline -- --benchmark-sharp
@@ -189,7 +191,8 @@ la grabación requiere uno que sí los admita.
 ## Cómo funciona
 
 1. Se construyen cubos y prismas para la nave y el puerto. Una jerarquía de cajas
-   envolventes (BVH) reduce las intersecciones necesarias por rayo.
+   envolventes (BVH) construida con SAH reduce las intersecciones necesarias por
+   rayo y recorre primero las cajas más cercanas.
 2. La cámara orbital genera rayos en perspectiva. Se toma el impacto positivo
    más cercano mediante el método de intervalos por eje.
 3. Se muestrea la textura del material en la cara alcanzada y se calcula luz
@@ -218,7 +221,9 @@ cargo tree --offline
 Las pruebas cubren Snell, reflexión interna total, entrada/salida del vidrio,
 rayos dentro y fuera de cajas, equivalencia BVH/búsqueda completa, cámara orbital,
 continuidad del cubemap, límites físicos de los materiales y cancelación/reanudación
-del renderizado.
+del renderizado. También comparan la jerarquía con una búsqueda exhaustiva en
+la escena completa: rayos paralelos, impactos rasantes, orígenes dentro de bloques,
+límites de distancia y geometría coincidente.
 
 ## Referencia visual
 

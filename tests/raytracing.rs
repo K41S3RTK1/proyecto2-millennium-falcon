@@ -128,3 +128,62 @@ fn materials_preserve_energy_and_have_valid_optical_parameters() {
         assert!(m.shininess > 0.);
     }
 }
+
+#[test]
+fn bvh_handles_parallel_grazing_inside_and_limited_rays_in_full_scene() {
+    use falcon_diorama::scene::Scene;
+    let scene = Scene::new();
+    let check = |ray: Ray, limit| {
+        let fast = scene.hit(ray, limit);
+        let slow = scene
+            .blocks
+            .iter()
+            .enumerate()
+            .filter_map(|(i, b)| b.intersect(ray, limit, i))
+            .min_by(|a, b| a.t.total_cmp(&b.t));
+        assert_eq!(fast.is_some(), slow.is_some(), "ray={ray:?}, limit={limit}");
+        if let (Some(a), Some(b)) = (fast, slow) {
+            close(a.t, b.t);
+            // En aristas compartidas pueden existir varios bloques a igual distancia.
+            assert!((a.point - b.point).len() < 1e-4);
+        }
+    };
+    for (i, block) in scene.blocks.iter().enumerate().step_by(41) {
+        let center = (block.bounds.lo + block.bounds.hi) * 0.5;
+        for direction in [
+            V::new(1., 0., 0.),
+            V::new(0., -1., 0.),
+            V::new(0., 0., 1.),
+            V::new(1e-10, 1., -1e-10),
+            V::new(1., 1e-8, 0.),
+        ] {
+            for origin in [center, block.bounds.lo, block.bounds.hi] {
+                check(Ray::new(origin, direction), 100.);
+                check(Ray::new(origin, direction), 0.05 + noise(i as i32, 3, 4));
+            }
+        }
+    }
+    for i in 0..1500 {
+        let origin = V::new(
+            noise(i, 1, 3) * 24. - 12.,
+            noise(i, 2, 7) * 10. - 2.,
+            noise(i, 4, 6) * 24. - 12.,
+        );
+        let direction = V::new(
+            noise(i, 8, 2) - 0.5,
+            noise(i, 3, 9) - 0.5,
+            noise(i, 6, 2) - 0.5,
+        );
+        check(Ray::new(origin, direction), 0.1 + noise(i, 3, 1) * 50.);
+    }
+}
+
+#[test]
+fn bvh_accepts_empty_and_coincident_geometry() {
+    let ray = Ray::new(V::default(), V::new(0., 0., -1.));
+    assert!(Bvh::build(&[]).hit(&[], ray, 100.).is_none());
+    let blocks = vec![Block::new(V::new(0., 0., -4.), V::splat(2.), 0, V::splat(1.)); 1000];
+    let tree = Bvh::build(&blocks);
+    close(tree.hit(&blocks, ray, 100.).unwrap().t, 3.);
+    assert!(tree.hit(&blocks, ray, 2.).is_none());
+}
