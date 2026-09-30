@@ -129,7 +129,6 @@ pub fn run(
     auto_orbit: bool,
     adaptive: bool,
     prefer_gpu: bool,
-    skip_intro: bool,
 ) -> Result<(), Box<dyn Error>> {
     let (mut window, thread) = raylib::init()
         .size(1200, 800)
@@ -151,9 +150,13 @@ pub fn run(
             }
         }
     }
-    if !skip_intro && let Err(error) = crate::intro::play(&mut window, &thread) {
+    let audio = crate::audio::Audio::new();
+    if let Err(error) = crate::intro::play(&mut window, &thread, &audio) {
         eprintln!("Intro: {error}");
+        audio.event(crate::audio::Event::FinishIntro);
     }
+    // El Espacio que omite la intro no activa también el recorrido.
+    let mut just_left_intro = true;
     let mut fade_in = Instant::now();
     let worker_scene = scene.clone();
     let cancel = Arc::new(AtomicU64::new(0));
@@ -258,16 +261,25 @@ pub fn run(
                 changed = true;
             }
         }
-        if window.is_key_pressed(KEY_SPACE) {
+        if !just_left_intro && window.is_key_pressed(KEY_SPACE) {
             orbit = !orbit;
         }
-        if window.is_key_pressed(KEY_I) {
-            if let Err(error) = crate::intro::play(&mut window, &thread) {
+        if !just_left_intro && window.is_key_pressed(KEY_M) {
+            audio.event(crate::audio::Event::ToggleMute);
+        }
+        if !just_left_intro && window.is_key_pressed(KEY_I) {
+            if let Err(error) = crate::intro::play(&mut window, &thread, &audio) {
                 eprintln!("Intro: {error}");
+                audio.event(crate::audio::Event::FinishIntro);
             }
+            camera = Camera::default();
+            orbit = false;
+            generation += 1;
+            cancel.store(generation, Ordering::Relaxed);
             fade_in = Instant::now();
             changed = true;
         }
+        just_left_intro = false;
         if window.is_key_pressed(KEY_C) {
             settings.space = !settings.space;
             changed = true;
@@ -285,12 +297,14 @@ pub fn run(
         for (i, key) in keys.iter().enumerate() {
             let button = Rectangle::new(20. + i as f32 * 116., 59., 108., 28.);
             if window.is_key_pressed(*key) || (click && button.check_collision_point_rec(mouse)) {
+                audio.event(crate::audio::Event::View(i));
                 camera = preset(i);
                 orbit = false;
                 changed = true;
             }
         }
         if window.is_key_pressed(KEY_R) {
+            audio.event(crate::audio::Event::View(0));
             camera = Camera::default();
             orbit = false;
             changed = true;
@@ -618,11 +632,12 @@ pub fn run(
         );
         draw.draw_text(
             &format!(
-                "F Reflejos {}   G Refraccion {}   B Cielo {}   C Entorno {}   |   T CPU/GPU   I Intro   H Ayuda",
+                "F Reflejos {}   G Refraccion {}   B Cielo {}   C Entorno {}   |   T CPU/GPU   I Intro   M Audio {}   H Ayuda",
                 if settings.reflections { "SI" } else { "NO" },
                 if settings.refractions { "SI" } else { "NO" },
                 if settings.skybox { "SI" } else { "NO" },
-                if settings.space { "ESPACIO" } else { "TATOOINE" }
+                if settings.space { "ESPACIO" } else { "TATOOINE" },
+                if audio.status().muted { "NO" } else { "SI" }
             ),
             20,
             height - 26,

@@ -1,11 +1,24 @@
-# Audio opcional de la introducción
+# Audio local
 
-Colocar una grabación autorizada con uno de estos nombres:
+Copiar los siete WAV en esta carpeta, conservando exactamente estos nombres:
 
-- `intro.ogg`
-- `intro.mp3`
-- `intro.wav`
+| Archivo | Duración de la grabación local | Uso |
+|---|---:|---|
+| `theme.wav` | 90.112 s | Intro, una vez desde el título |
+| `cantina.wav` | 90.112 s | Ambiente en bucle |
+| `dv theme.wav` | 54.613 s | Música de Vader en bucle |
+| `TIE FX.wav` | 4.096 s | Omitir intro, una vez antes de cantina |
+| `LS FX.wav` | 13.653 s | Vista 7, una vez antes del tema de Vader |
+| `R2D2 FX.wav` | 3.413 s | Vista 6, una vez antes de cantina |
+| `MF FX.wav` | 8.192 s | Vista 2, una vez antes de cantina |
 
-La introducción la reproduce con raylib, permite silenciar con M y detiene la
-música al terminar o saltar con Enter/Espacio. Sin archivo, funciona en silencio.
-Los archivos de audio locales no se incluyen automáticamente en Git.
+Las grabaciones locales son WAV PCM, 48 kHz, estéreo, 24 bits. Raylib lee su
+duración real; no se recortan ni convierten. Repetir una tecla de efecto reinicia
+su secuencia. Nunca se reproducen dos pistas simultáneamente. M silencia todo
+sin alterar el avance; I detiene la pista actual y repite la intro desde su fase
+azul silenciosa. Al cerrar se detiene y descarga el audio.
+
+Los WAV locales están excluidos de Git. Al descargar el repositorio en otro
+equipo es necesario copiarlos por separado. Sin archivos, la aplicación sigue
+funcionando en silencio. `cargo run --release --offline -- --audio-check` permite
+verificar carga, transiciones y bucles sin reproducir sonido audible.

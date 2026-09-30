@@ -4,7 +4,7 @@
 
 1. Abrir `Iniciar.command` o ejecutar `cargo run --release --offline`. Aparece
    la intro y después la ventana raylib con raytracing GPU. Enter/Espacio salta
-   la intro; `--no-intro` la omite al iniciar. No hace falta abrir el navegador.
+   la intro y reproduce TIE antes de la música de ambiente. No hace falta navegador.
 2. Probar antes de clase arrastre, flechas y zoom. `Q` alterna Nítido 1200,
    Fluido adaptativo y Retina constante. Inicia en Nítido 1200. Usar Fluido
    para recorridos si hace falta; Retina prioriza detalle y puede verse lento. `H` oculta la ayuda.
@@ -13,7 +13,8 @@
 4. Mostrar `3` Cabina y `4` Refracción. Usar `G` para comparar el vidrio.
 5. Usar `F` y `B` para comparar reflexión y skybox; dejarlos activados al terminar.
 6. Mostrar `6` Droide, luego `7` Vader y su sable. `C` alterna Tatooine/espacio.
-   `I` permite repetir la intro.
+   `I` permite repetir la intro; `M` silencia todo el audio. Al pulsar `7`,
+   esperar los 13.653 segundos del sable para escuchar el tema de Vader.
 7. Volver a `1` y pulsar Espacio para el recorrido automático. Espacio lo detiene.
 8. Tener el video `renders/diorama.webm` disponible como respaldo. Para grabar otro,
    ejecutar `cargo run --release --offline -- --web` y usar el visor web opcional.
@@ -56,6 +57,9 @@ GitHub, abrir `renders/diorama.webm` o descargarlo.
 
 ## Música y video
 
-La intro funciona sin audio. Para incorporar una grabación autorizada, consultar
-`assets/audio/README.md`. El video publicado sigue siendo el recorrido inicial;
+La intro dura aproximadamente 94.112 segundos: frase azul de 4 segundos y
+90.112 segundos del tema musical. Preparar los siete WAV siguiendo
+`assets/audio/README.md`: son archivos locales excluidos de Git, por lo que hay
+que copiarlos por separado si se usa otra computadora. Probar los efectos con
+`2`, `6`, `7`, el salto de intro y el cambio de cámaras; nunca deben superponerse. El video publicado sigue siendo el recorrido inicial;
 falta grabar el recorrido final con las nuevas vistas y la intro antes de entregar.

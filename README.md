@@ -2,7 +2,7 @@
 
 Diorama de Star Wars construido con **5,814 bloques** y renderizado por raytracing
 implementado desde cero en Rust y GLSL. La nave está estacionada en un pequeño puerto
-espacial desértico, con edificios de arenisca, luces, carga, un depósito de cristal
+espacial desértico, con edificios de arenisca, luces, carga, un depósito de cristal,
 un droide astromecánico junto a su estación de mantenimiento y Vader con sable rojo.
 
 [![Millennium Falcon en el puerto espacial](renders/falcon.png)](renders/diorama.webm)
@@ -28,8 +28,9 @@ cargo run --release --locked
 Después de descargar las dependencias una vez se puede agregar `--offline`.
 Usar siempre `--release` para presentar; la compilación de depuración es más lenta.
 El lanzador genera una app local en `target/Millennium Falcon.app`.
-`cargo run --release --offline -- --demo` inicia directamente el recorrido.
-Al abrir aparece un prólogo de 26 segundos, saltable con Enter o Espacio.
+`cargo run --release --offline -- --demo` activa el recorrido después del prólogo.
+Al abrir siempre aparece la introducción: 4 segundos de frase azul y 90.112
+segundos de música y títulos. Enter o Espacio permiten saltarla.
 Después, la ventana inicia con el **raytracer GPU**; `--cpu` permite usar el motor CPU de
 respaldo. Si el shader no compila, la aplicación vuelve automáticamente a CPU.
 
@@ -50,7 +51,8 @@ respaldo. Si el shader no compila, la aplicación vuelve automáticamente a CPU.
 | Vader y sable | `7` o botón Vader |
 | Cambiar Tatooine / espacio | `C` |
 | Repetir introducción | `I` |
-| Saltar introducción / silenciar su música | Enter o Espacio / `M` |
+| Saltar introducción | Enter o Espacio |
+| Silenciar / activar todo el audio | `M` |
 | Mostrar/ocultar ayuda | `H` |
 | Guardar imagen de calidad | `S` → `renders/captura.png`, 2560 px de ancho (mantener cámara quieta) |
 | Salir | Escape o cerrar la ventana |
@@ -167,7 +169,8 @@ La tecla **6** abre una vista cercana. Desde ahí también se puede rotar y usar
 
 ## Vader, sable y entorno espacial
 
-La vista **7** muestra el casco escalonado, respirador, panel del pecho, capa con
+Vader ocupa un espacio propio junto al borde frontal de la base, separado de
+las mandíbulas del Halcón. La vista **7** muestra el casco escalonado, respirador, panel del pecho, capa con
 pliegues, botas y empuñadura estriada. La tela y la armadura tienen respuestas
 ópticas distintas. El sable contiene bloques emisivos y un halo analítico
 recortado por la distancia al primer impacto; la luz roja local utiliza sombras
@@ -185,20 +188,51 @@ El cielo de Tatooine se conserva y **B** permite desactivar cualquiera de ellos.
 
 ## Introducción
 
-El prólogo presenta un texto original sobre un joven programador, seguido por
-letras amarillas que se alejan en perspectiva. Termina con un fundido y la entrada
-al diorama. **Enter/Espacio** lo salta, **I** lo repite y `--no-intro` abre
-directamente la escena. El texto utiliza una fuente del sistema cuando está
-disponible y la fuente integrada de raylib como alternativa; no se distribuyen
-fuentes externas. La introducción pertenece a la presentación nativa.
+El prólogo comienza en silencio con «En una galaxia muy lejana…» en azul.
+Cuatro segundos después aparece **MILLENIUM FALCON** y comienza `theme.wav`.
+**EPISODIO II — UNIVERSO DE RAYOS** introduce una historia de androides,
+rebeldes y un joven programador, con letras amarillas en perspectiva. El reloj
+del audio gobierna el desplazamiento del texto; al terminar la pista entra el
+diorama. Con la grabación local, la secuencia musical dura **90.112 segundos**
+y la presentación completa **94.112 segundos** aproximadamente.
+
+**Enter/Espacio** detiene el tema y salta al diorama con el efecto TIE completo;
+**I** vuelve a iniciar la presentación y después regresa a la cámara principal.
+La fuente se toma del sistema si está disponible, con la fuente integrada de
+raylib como alternativa. Esta presentación pertenece a la ventana nativa.
 
 ![Texto en perspectiva](renders/intro.png)
 
-La música es opcional: colocar una grabación autorizada en `assets/audio/intro.ogg`,
-`intro.mp3` o `intro.wav`. Se reproduce con raylib, **M** silencia y se detiene al
-terminar o saltar la intro. No se incluye una grabación musical en el repositorio;
-los archivos locales de audio están excluidos de Git. Sin archivo, la intro
-funciona en silencio.
+### Música y efectos
+
+Raylib reproduce un único stream a la vez, actualizado desde un hilo propio
+para que un cuadro costoso no interrumpa la música. **M** silencia o reactiva
+el audio y conserva su estado al cambiar de vista o repetir la intro.
+
+| Situación | Secuencia de audio |
+|---|---|
+| Título inicial / `I` | `theme.wav` una vez, desde que aparece el título |
+| Omitir intro | Detener tema → `TIE FX.wav` completo → cantina |
+| Diorama | `cantina.wav` en bucle |
+| `2` Motor | `MF FX.wav` una vez → cantina |
+| `6` Droide | `R2D2 FX.wav` una vez → cantina |
+| `7` Vader | `LS FX.wav` una vez → `dv theme.wav` en bucle |
+| Repetir `2`, `6` o `7` | Reinicia el efecto correspondiente |
+| Salir de Vader con `1`–`6`, `R` o `I` | Detiene su música y aplica la nueva secuencia |
+
+Los botones de las cámaras hacen lo mismo que sus teclas. Los archivos locales
+se colocan en `assets/audio/` con los nombres exactos de la tabla y se excluyen
+de Git. Consultar [preparación del audio](assets/audio/README.md) al copiar el
+proyecto a otra computadora. Sin los archivos o un dispositivo de audio, la
+presentación conserva la secuencia en silencio.
+
+```sh
+cargo run --release --offline -- --audio-check
+```
+
+Esta comprobación silenciada carga los siete WAV, adelanta cada stream cerca
+de su final y verifica las transiciones y los dos bucles. La reproducción normal
+respeta la duración completa de cada grabación.
 
 Los tres materiales de Vader enriquecen el aspecto visual; la rúbrica limita la
 puntuación por materiales a cinco, aunque la escena incluya ocho.
@@ -236,7 +270,7 @@ apariencia luminosa; no se simula iluminación global por emisión.
 
 ## Dependencias
 
-La única dependencia directa es **raylib 6**, utilizada para ventana, entrada, audio opcional,
+La única dependencia directa es **raylib 6**, utilizada para ventana, entrada, reproducción de audio,
 texto, ejecución del shader propio y presentación de la imagen. Sus dependencias transitivas quedan registradas
 en `Cargo.lock`.
 
@@ -320,7 +354,7 @@ la grabación requiere uno que sí los admita.
 `camera.rs` maneja la cámara; `skybox.rs` genera y muestrea el cubemap;
 `png.rs` codifica la imagen; `viewer.rs` contiene la ventana, el renderizado
 asíncrono y la resolución adaptativa; `gpu.rs` carga los datos y el shader;
-`shaders/raytrace.fs` calcula la imagen GPU; `intro.rs` y `shaders/crawl.fs` muestran el prólogo; `server.rs` conserva el visor web opcional.
+`shaders/raytrace.fs` calcula la imagen GPU; `intro.rs` y `shaders/crawl.fs` muestran el prólogo; `audio.rs` coordina música y efectos; `server.rs` conserva el visor web opcional.
 
 ## Verificar
 

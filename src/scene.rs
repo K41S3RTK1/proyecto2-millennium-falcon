@@ -4,9 +4,9 @@ use crate::{
     math::{Ray, V, noise},
     skybox::Skybox,
 };
-pub const VADER_ORIGIN: V = V::new(1.1, 0., -7.05);
-pub const SABER_BOTTOM: V = V::new(1.91, 1.20, -7.42);
-pub const SABER_TOP: V = V::new(1.91, 2.96, -7.42);
+pub const VADER_ORIGIN: V = V::new(-3.1, 0., -7.65);
+pub const SABER_BOTTOM: V = V::new(VADER_ORIGIN.x + 0.81, 1.20, VADER_ORIGIN.z - 0.37);
+pub const SABER_TOP: V = V::new(SABER_BOTTOM.x, 2.96, SABER_BOTTOM.z);
 #[derive(Clone, Copy)]
 pub struct Light {
     pub position: V,
