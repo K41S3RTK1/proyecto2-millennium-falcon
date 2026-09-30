@@ -155,6 +155,42 @@ pub struct Bvh {
     indices: Vec<usize>,
 }
 impl Bvh {
+    /// Nodos preorden para GPU: límites, salto de subárbol, rango de hoja
+    /// e índices de hijos. El shader recorre los hijos por distancia.
+    /// Los índices de esta escena caben exactamente en f32.
+    pub fn gpu_data(&self, blocks: &[Block]) -> (Vec<[f32; 4]>, Vec<Block>) {
+        fn end(nodes: &[Node], id: usize) -> usize {
+            match nodes[id].kind {
+                Kind::Branch(_, right) => end(nodes, right),
+                Kind::Leaf { .. } => id + 1,
+            }
+        }
+        let mut data = Vec::with_capacity(self.nodes.len() * 3);
+        for (id, node) in self.nodes.iter().enumerate() {
+            let (start, count) = match node.kind {
+                Kind::Leaf { start, count } => (start, count),
+                Kind::Branch(_, _) => (0, 0),
+            };
+            data.push([
+                node.bounds.lo.x,
+                node.bounds.lo.y,
+                node.bounds.lo.z,
+                end(&self.nodes, id) as f32,
+            ]);
+            data.push([
+                node.bounds.hi.x,
+                node.bounds.hi.y,
+                node.bounds.hi.z,
+                count as f32,
+            ]);
+            let (left, right) = match node.kind {
+                Kind::Branch(a, b) => (a, b),
+                _ => (0, 0),
+            };
+            data.push([start as f32, left as f32, right as f32, 0.]);
+        }
+        (data, self.indices.iter().map(|&i| blocks[i]).collect())
+    }
     pub fn build(blocks: &[Block]) -> Self {
         let mut tree = Self {
             nodes: Vec::new(),

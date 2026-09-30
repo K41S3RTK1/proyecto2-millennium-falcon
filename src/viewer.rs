@@ -1,4 +1,4 @@
-//! Raylib solo presenta el framebuffer y recibe entradas; todo el 3D se calcula en Rust.
+//! Ventana compartida por el raytracer CPU y el shader GPU.
 use crate::{
     camera::Camera,
     math::V,
@@ -25,7 +25,7 @@ const VIEWS: [&str; 6] = [
     "5  Superior",
     "6  Droide",
 ];
-fn preset(index: usize) -> Camera {
+pub(crate) fn preset(index: usize) -> Camera {
     match index {
         1 => Camera {
             yaw: 154.,
@@ -120,6 +120,7 @@ pub fn run(
     mut settings: Settings,
     auto_orbit: bool,
     adaptive: bool,
+    prefer_gpu: bool,
 ) -> Result<(), Box<dyn Error>> {
     let (mut window, thread) = raylib::init()
         .size(1200, 800)
@@ -129,6 +130,19 @@ pub fn run(
         .build();
     window.set_target_fps(60);
     window.set_window_min_size(1000, 600);
+    let scene = Arc::new(scene);
+    let mut gpu = None;
+    let mut use_gpu = prefer_gpu;
+    if prefer_gpu {
+        match crate::gpu::Renderer::new(&mut window, &thread, &scene) {
+            Ok(renderer) => gpu = Some(renderer),
+            Err(error) => {
+                eprintln!("GPU no disponible: {error}. Se utiliza CPU.");
+                use_gpu = false;
+            }
+        }
+    }
+    let worker_scene = scene.clone();
     let cancel = Arc::new(AtomicU64::new(0));
     let worker_cancel = cancel.clone();
     let (jobs, requests) = mpsc::channel::<Job>();
@@ -136,7 +150,7 @@ pub fn run(
     let worker = std::thread::spawn(move || {
         while let Ok(job) = requests.recv() {
             let frame = render::render_interruptible(
-                &scene,
+                &worker_scene,
                 job.camera,
                 job.settings,
                 &worker_cancel,
@@ -167,7 +181,7 @@ pub fn run(
     let mut generation = 0;
     let mut busy = false;
     let mut running_level = 0;
-    let mut preview_width = 352;
+    let mut preview_width = if use_gpu { 960 } else { 352 };
     let mut motion_quality = if adaptive {
         MotionQuality::Adaptive
     } else {
@@ -211,6 +225,25 @@ pub fn run(
         if previous_size != (width, height, render_width) {
             previous_size = (width, height, render_width);
             changed = true;
+        }
+        if window.is_key_pressed(KEY_T) {
+            if gpu.is_none() {
+                match crate::gpu::Renderer::new(&mut window, &thread, &scene) {
+                    Ok(renderer) => gpu = Some(renderer),
+                    Err(error) => {
+                        notice = format!("GPU no disponible: {error}");
+                        notice_until = now + Duration::from_secs(8);
+                    }
+                }
+            }
+            if gpu.is_some() {
+                use_gpu = !use_gpu;
+                preview_width = if use_gpu { 960 } else { 352 };
+                generation += 1;
+                cancel.store(generation, Ordering::Relaxed);
+                presented_frames.clear();
+                changed = true;
+            }
         }
         if window.is_key_pressed(KEY_SPACE) {
             orbit = !orbit;
@@ -314,7 +347,7 @@ pub fn run(
                 };
                 notice_until = now + Duration::from_secs(5);
             }
-            if done.generation != generation {
+            if use_gpu || done.generation != generation {
                 continue;
             }
             if let Some(frame) = done.frame {
@@ -349,7 +382,7 @@ pub fn run(
         {
             presented_frames.pop_front();
         }
-        if !busy {
+        if !busy && !use_gpu {
             let idle = now.duration_since(last_input).as_secs_f32();
             let level = if request_save {
                 Some(3)
@@ -395,13 +428,97 @@ pub fn run(
                 }
             }
         }
+        if use_gpu {
+            let idle = now.duration_since(last_input).as_secs_f32();
+            let level = if request_save {
+                Some(3)
+            } else if dirty {
+                Some(0)
+            } else if idle > 0.22 && refined_level == 0 {
+                Some(1)
+            } else if idle > 0.8 && refined_level == 1 {
+                Some(2)
+            } else {
+                None
+            };
+            if let Some(level) = level {
+                // Solo el modo Fluido cambia resolución al moverse; Q conserva
+                // los dos modos de nitidez fija y todos los efectos ópticos.
+                if level == 0 && motion_quality == MotionQuality::Adaptive && frame_size.0 > 0 {
+                    let ratio = ((1. / 30.) / window.get_frame_time().max(0.001))
+                        .sqrt()
+                        .clamp(0.9, 1.06);
+                    preview_width =
+                        (((preview_width as f32 * ratio) as usize / 32) * 32).clamp(480, 1200);
+                }
+                let w = match level {
+                    0 => motion_quality.width(render_width, preview_width),
+                    1 => motion_quality.width(render_width, 1200),
+                    2 => (render_width as usize).clamp(1600, 2560),
+                    _ => 2560,
+                };
+                let cfg = Settings {
+                    width: w,
+                    height: ((w as f32 / aspect) as usize).max(1),
+                    quality: if level == 0 {
+                        0
+                    } else if level == 1 {
+                        1
+                    } else {
+                        2
+                    },
+                    ..settings
+                };
+                let renderer = gpu.as_mut().unwrap();
+                match renderer.render(&mut window, &thread, camera, cfg) {
+                    Ok(()) => {
+                        if level == 3 {
+                            match renderer.pixels().and_then(|pixels| {
+                                png::save("renders/captura.png", cfg.width, cfg.height, &pixels)
+                                    .map_err(Into::into)
+                            }) {
+                                Ok(()) => {
+                                    notice = "Imagen GPU guardada en renders/captura.png".into()
+                                }
+                                Err(error) => notice = format!("No se pudo guardar: {error}"),
+                            }
+                            notice_until = now + Duration::from_secs(5);
+                        }
+                        frame_size = (cfg.width, cfg.height);
+                        frame_ms = window.get_frame_time() * 1000.;
+                        shown_level = level;
+                        presented_frames.push_back(now);
+                        dirty = false;
+                        request_save = false;
+                        if level > 0 {
+                            refined_level = level;
+                        }
+                    }
+                    Err(error) => {
+                        notice = format!("GPU: {error}; se utiliza CPU");
+                        notice_until = now + Duration::from_secs(8);
+                        use_gpu = false;
+                        dirty = true;
+                    }
+                }
+            }
+        }
         let ui_fps = window.get_fps();
         let mut draw = window.begin_drawing(&thread);
         let bg = Color::new(13, 19, 28, 255);
         let accent = Color::new(242, 186, 105, 255);
         let muted = Color::new(166, 183, 198, 255);
         draw.clear_background(bg);
-        if let Some(t) = &texture {
+        if use_gpu && let Some(t) = gpu.as_ref().and_then(|g| g.texture()) {
+            draw.draw_texture_pro(
+                t,
+                Rectangle::new(0., 0., t.width() as f32, -(t.height() as f32)),
+                viewport,
+                Vector2::zero(),
+                0.,
+                Color::WHITE,
+            );
+        } else if let Some(t) = &texture {
             draw.draw_texture_pro(
                 t,
                 Rectangle::new(0., 0., t.width() as f32, t.height() as f32),
@@ -449,7 +566,8 @@ pub fn run(
         };
         draw.draw_text(
             &format!(
-                "{state}  |  {}x{}  |  {:.0} ms  |  {} imagenes/s  |  UI {} FPS  |  Zoom {:.1}",
+                "{} {state}  |  {}x{}  |  {:.0} ms  |  {} imagenes/s  |  UI {} FPS  |  Zoom {:.1}",
+                if use_gpu { "GPU" } else { "CPU" },
                 frame_size.0,
                 frame_size.1,
                 frame_ms,
@@ -464,7 +582,7 @@ pub fn run(
         );
         draw.draw_text(
             &format!(
-                "F Reflejos {}   G Refraccion {}   B Cielo {}   |   H Ayuda",
+                "F Reflejos {}   G Refraccion {}   B Cielo {}   |   T CPU/GPU   H Ayuda",
                 if settings.reflections { "SI" } else { "NO" },
                 if settings.refractions { "SI" } else { "NO" },
                 if settings.skybox { "SI" } else { "NO" }

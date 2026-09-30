@@ -1,7 +1,7 @@
 # Millennium Falcon — Docking Bay 94
 
 Diorama de Star Wars construido con **5,596 bloques** y renderizado por raytracing
-implementado desde cero en Rust. La nave está estacionada en un pequeño puerto
+implementado desde cero en Rust y GLSL. La nave está estacionada en un pequeño puerto
 espacial desértico, con edificios de arenisca, luces, carga, un depósito de cristal
 y un droide astromecánico junto a su estación de mantenimiento.
 
@@ -29,6 +29,8 @@ Después de descargar las dependencias una vez se puede agregar `--offline`.
 Usar siempre `--release` para presentar; la compilación de depuración es más lenta.
 El lanzador genera una app local en `target/Millennium Falcon.app`.
 `cargo run --release --offline -- --demo` inicia directamente el recorrido.
+La ventana inicia con el **raytracer GPU**; `--cpu` permite usar el motor CPU de
+respaldo. Si el shader no compila, la aplicación vuelve automáticamente a CPU.
 
 ### Controles de la ventana
 
@@ -43,35 +45,65 @@ El lanzador genera una app local en `target/Millennium Falcon.app`.
 | Activar/desactivar refracción | `G` |
 | Activar/desactivar skybox | `B` |
 | Nitidez durante el movimiento | `Q` o botón superior: Nítido 1200 → Fluido → Retina |
+| Alternar raytracer CPU / GPU | `T` (misma cámara y efectos) |
 | Mostrar/ocultar ayuda | `H` |
 | Guardar imagen de calidad | `S` → `renders/captura.png`, 2560 px de ancho (mantener cámara quieta) |
 | Salir | Escape o cerrar la ventana |
 
 ### Rendimiento en Mac M1
 
-- Raylib recibe directamente los píxeles RGBA; no hay PNG, HTTP ni navegador en el
-  camino de presentación nativo. Solo dibuja una textura 2D, no la escena 3D.
-- El trazado corre en un hilo coordinador y varios trabajadores, reservando un
-  núcleo lógico para la interfaz. La ventana procesa controles a 60 FPS objetivo.
-- Inicia en **Nítido 1200**: mantiene 1200 píxeles de ancho al mover la cámara.
-  `Q` alterna a **Fluido** (192–640 px adaptativos, objetivo 30 imágenes
-  calculadas/s), después a **Retina constante** (1600–2560 px) y regresa a Nítido.
-- Los tres modos conservan reflejos, refracción, sombras y cielo. En movimiento
-  usan una muestra por píxel y menor profundidad recursiva; al detenerse recuperan
-  oclusión local y cuatro muestras por píxel. Resolución constante no significa
-  igual muestreo que una captura final.
-- `--adaptive` permite iniciar directamente en Fluido. Los modos de resolución
-  fija priorizan detalle y pueden resultar lentos, sobre todo cerca del vidrio.
-- El trabajo se reparte en bandas de ocho filas: cada núcleo toma otra banda al
-  terminar, aprovechando mejor los distintos núcleos del M1.
-- Al detenerse, refina la iluminación y después renderiza a resolución Retina
-  (1600–2560 de ancho), con cuatro muestras por píxel.
-  La ventana utiliza HiDPI para evitar estirar un framebuffer de baja resolución. Mover la cámara cancela ese refinamiento por filas.
-- No hay cola de movimientos antiguos: se solicita la cámara más reciente al
-  terminar cada previsualización. En reposo no se recalcula continuamente.
-- El pie distingue **imágenes/s** realmente presentadas de **FPS de interfaz**.
-  En el modo Fluido, la resolución durante el movimiento es menor, especialmente
-  cerca del vidrio.
+El modo GPU ejecuta un fragment shader GLSL 330 mediante raylib/OpenGL 4.1.
+Cada píxel calcula sus propios rayos en paralelo. La geometría sigue siendo una
+colección de bloques: el shader implementa intersecciones, texturas, iluminación,
+sombras, reflexión, refracción y skybox. No utiliza un motor de raytracing externo
+ni depende de aceleración de rayos dedicada del hardware.
+
+- La escena y la BVH se cargan una sola vez en texturas RGBA32F. El recorrido
+  visita primero las cajas más cercanas; las sombras terminan al encontrar un
+  obstáculo opaco. La pila BVH admite 64 entradas; la construcción limita la profundidad a 60.
+- La imagen permanece en GPU para presentarla; solo las capturas y las pruebas
+  comparativas la leen de vuelta a CPU.
+- Inicia en **Nítido 1200**, con ancho fijo durante el movimiento. `Q` cambia a
+  **Fluido adaptativo** (480–1200 px en GPU), **Retina constante** (1600–2560 px)
+  y regresa a Nítido. El modo Fluido busca 30 imágenes/s, sin garantizarlas.
+- Todos los modos conservan los efectos. En movimiento usan una muestra por
+  píxel y tres niveles de rayos secundarios. Al detenerse recuperan oclusión
+  local, seis niveles y finalmente cuatro muestras por píxel a resolución Retina.
+- La ventana tiene un límite de 60 FPS. Las vistas cercanas del vidrio exigen más
+  rayos; para priorizar fluidez en esas vistas se puede seleccionar Fluido.
+- `T` cambia a CPU sin perder encuadre ni controles. El motor CPU conserva el
+  reparto por bandas de ocho filas, cancelación del refinamiento y resolución
+  adaptativa de 192–640 px. No calcula imágenes en segundo plano mientras se usa GPU.
+- **Imágenes/s** cuenta actualizaciones presentadas; **UI FPS** mide el ciclo de
+  la ventana. El tiempo en ms corresponde al trazado en CPU y al intervalo del
+  ciclo de la ventana en GPU. En reposo no se recalcula continuamente.
+
+Para medir cuadros GPU terminados, el benchmark fuerza lectura de la textura:
+
+```sh
+cargo run --release --offline -- --benchmark-gpu --width 1200 --height 644 --quality 0
+```
+
+El resultado incluye transferencia y copia de píxeles; no mide solamente el envío
+de instrucciones a la GPU. Usa tres cuadros de calentamiento y diez medidos por
+vista. El encuadre gira 0.7 grados por cuadro.
+
+Medición en Apple M1 (1200×644, calidad interactiva, todos los efectos activos):
+
+| Vista | Tiempo medio, con lectura | Cuadros/s del benchmark |
+|---|---:|---:|
+| Principal | 14.8 ms | 67.4 |
+| Motor | 22.3 ms | 44.8 |
+| Cabina | 43.0 ms | 23.2 |
+| Refracción | 40.2 ms | 24.9 |
+| Superior | 14.7 ms | 68.1 |
+| Droide | 21.2 ms | 47.1 |
+
+Estas cifras son una medición, no un mínimo garantizado. Cambian con el encuadre
+y la carga del equipo; la ventana limita la presentación a 60 FPS. En vidrio,
+Nítido 1200 conserva resolución y puede quedar por debajo de 30 FPS.
+
+### Motor CPU de respaldo
 
 Comparación de CPU a 1200×644, todos los efectos activos y calidad interactiva:
 
@@ -104,7 +136,7 @@ cargo run --release --offline -- --benchmark
 | Rotación y zoom (20) | Cámara orbital interactiva alrededor de un objetivo, control de azimut, elevación y distancia. Se recalculan los rayos al moverla. |
 | Materiales (hasta 25) | Cinco materiales con su propia textura y parámetros de albedo, especular, transparencia y reflectividad. Tabla siguiente. |
 | Refracción (10) | Ley de Snell, índice 1.5 para vidrio, interfaces de entrada y salida, reflexión interna total. Vidrio en cabina y depósito; su interior permite observar el desplazamiento óptico. |
-| Reflexión (5) | Rayos reflejados recursivos en metal pulido y vidrio, con mezcla de Fresnel para el material transparente. |
+| Reflexión (5) | Rayos secundarios reflejados en metal pulido y vidrio, con mezcla de Fresnel para el material transparente. |
 | Skybox (20) | Cubemap de seis caras, muestreo por dirección y filtrado bilineal. Entorno desértico con dos soles, visible también en reflejos. |
 | Entrega | Código fuente, capturas y video incluidos en el repositorio. |
 
@@ -158,11 +190,13 @@ apariencia luminosa; no se simula iluminación global por emisión.
 ## Dependencias
 
 La única dependencia directa es **raylib 6**, utilizada para ventana, entrada,
-texto y presentación de la imagen. Sus dependencias transitivas quedan registradas
+texto, ejecución del shader propio y presentación de la imagen. Sus dependencias transitivas quedan registradas
 en `Cargo.lock`.
 
-**Rust estándar** implementa geometría, intersecciones, texturas, iluminación,
-sombras, reflexión, refracción, cámara, cubemap, BVH, paralelismo y codificación PNG.
+**Rust estándar** construye geometría, materiales, cámara, cubemap y BVH; también
+implementa el raytracer CPU paralelo y el codificador PNG. **GLSL** implementa el
+raytracer GPU con los mismos parámetros. Reflexión y refracción usan una pila
+iterativa acotada en el shader, equivalente a la recursión del motor CPU.
 No se utilizan motores 3D ni librerías matemáticas o de trazado de rayos.
 
 Se conserva un visor web **opcional**, útil para grabar el video con Canvas 2D y
@@ -182,7 +216,15 @@ calculados por Rust y graba solo su canvas, sin cámara ni micrófono.
 cargo run --release --offline -- --render
 ```
 
-Produce `renders/falcon.png`. Se pueden ajustar resolución, calidad y cámara:
+Este comando usa CPU y produce `renders/falcon.png`. Para exportar con GPU:
+
+```sh
+cargo run --release --offline -- --gpu-check --width 1600 --height 1050 --quality 2 --output renders/gpu-check.png
+```
+
+La exportación GPU requiere una sesión gráfica aunque la ventana de prueba esté
+oculta. Ambos motores aceptan los mismos parámetros de cámara y efectos.
+ Se pueden ajustar resolución, calidad y cámara:
 
 ```sh
 cargo run --release --offline -- --render --width 1600 --height 1050 --quality 2 --yaw 38 --pitch 22 --distance 25 --output renders/falcon-hd.png
@@ -220,8 +262,9 @@ la grabación requiere uno que sí los admita.
    ambiente, difusa y especular. Rayos hacia las luces producen sombras, con
    transmisión aproximada a través del vidrio.
 4. Se generan rayos secundarios para reflexión y refracción. Fresnel distribuye
-   la parte transparente entre ambos efectos. La recursión tiene límite de
-   profundidad y de contribución para controlar el tiempo de render.
+   la parte transparente entre ambos efectos. La profundidad y la
+   contribución se limitan para controlar el tiempo de render. En GPU se usa una
+   pila explícita, con un máximo de 127 tareas para seis niveles secundarios.
 5. Los rayos que no tocan objetos muestrean el cubemap. La imagen final recibe
    mapeo de tonos y corrección gamma, y se presenta directamente en raylib. La exportación PNG utiliza código propio.
 
@@ -229,7 +272,8 @@ la grabación requiere uno que sí los admita.
 `geometry.rs` contiene cajas y BVH; `render.rs` traza los rayos;
 `camera.rs` maneja la cámara; `skybox.rs` genera y muestrea el cubemap;
 `png.rs` codifica la imagen; `viewer.rs` contiene la ventana, el renderizado
-asíncrono y la resolución adaptativa; `server.rs` conserva el visor web opcional.
+asíncrono y la resolución adaptativa; `gpu.rs` carga los datos y el shader;
+`shaders/raytrace.fs` calcula la imagen GPU; `server.rs` conserva el visor web opcional.
 
 ## Verificar
 
@@ -237,6 +281,7 @@ asíncrono y la resolución adaptativa; `server.rs` conserva el visor web opcion
 cargo test --offline
 cargo clippy --offline --all-targets -- -D warnings
 cargo tree --offline
+cargo run --release --offline -- --validate-gpu
 ```
 
 Las pruebas cubren Snell, reflexión interna total, entrada/salida del vidrio,
@@ -244,7 +289,14 @@ rayos dentro y fuera de cajas, equivalencia BVH/búsqueda completa, cámara orbi
 continuidad del cubemap, límites físicos de los materiales y cancelación/reanudación
 del renderizado. También comparan la jerarquía con una búsqueda exhaustiva en
 la escena completa: rayos paralelos, impactos rasantes, orígenes dentro de bloques,
-límites de distancia y geometría coincidente.
+límites de distancia y geometría coincidente. La prueba de empaquetado verifica
+que la BVH exportada para GPU conserva todos los bloques y los impactos.
+
+`--validate-gpu` necesita un contexto gráfico y compara 30 imágenes: seis vistas,
+calidad interactiva/final y los tres efectos desactivados por separado. Informa
+error medio por canal y proporción de píxeles con diferencia mayor que 32/255.
+La tolerancia es error medio ≤1/255 y como máximo 0.5 % de píxeles por encima de
+ese umbral, para admitir diferencias de redondeo en aristas compartidas.
 
 ## Referencia visual
 

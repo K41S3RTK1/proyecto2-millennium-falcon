@@ -1,5 +1,6 @@
 pub mod camera;
 pub mod geometry;
+pub mod gpu;
 pub mod material;
 pub mod math;
 pub mod png;

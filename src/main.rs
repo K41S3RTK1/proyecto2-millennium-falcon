@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|s| s == "--help") {
         println!(
-            "Millennium Falcon · Raytracing Rust + ventana raylib\n\ncargo run --release                 Ventana nativa (recomendado para Mac M1)\ncargo run --release -- --render     Guarda renders/falcon.png\nOpciones: --width 1100 --height 720 --quality 2 --yaw 38 --pitch 29 --distance 23 --output ruta.png\n--adaptive  Inicia con resolucion adaptativa (Q cambia el modo)\n--benchmark-sharp Compara nitidez fija a 1200 y 2400 px\n--demo      Abre la ventana con recorrido automatico\n--web       Visor web opcional y grabacion de video\n--benchmark Mide renderizado interactivo sin abrir ventana\n--port 7878  Puerto del visor web\n--tour 120   Exporta 120 imágenes para video\n--skybox     Exporta las seis caras del cubemap\n--no-reflections --no-refractions --no-skybox  Comparaciones"
+            "Millennium Falcon · Raytracing Rust + ventana raylib\n\ncargo run --release                 Ventana nativa (recomendado para Mac M1)\ncargo run --release -- --render     Guarda renders/falcon.png\nOpciones: --width 1100 --height 720 --quality 2 --yaw 38 --pitch 29 --distance 23 --output ruta.png\n--cpu       Inicia con raytracing CPU (T alterna CPU/GPU)\n--gpu-check Exporta un cuadro GPU; necesita contexto gráfico\n--validate-gpu Compara 30 imágenes CPU/GPU\n--benchmark-gpu Mide seis vistas GPU, con lectura sincronizada\n--adaptive  Inicia con resolucion adaptativa (Q cambia el modo)\n--benchmark-sharp Compara nitidez fija a 1200 y 2400 px\n--demo      Abre la ventana con recorrido automatico\n--web       Visor web opcional y grabacion de video\n--benchmark Mide renderizado interactivo sin abrir ventana\n--port 7878  Puerto del visor web\n--tour 120   Exporta 120 imágenes para video\n--skybox     Exporta las seis caras del cubemap\n--no-reflections --no-refractions --no-skybox  Comparaciones"
         );
         return Ok(());
     }
@@ -93,7 +93,20 @@ fn main() -> Result<(), Box<dyn Error>> {
             png::save(format!("renders/skybox-{i}.png"), size, size, &pixels)?;
         }
     }
-    if args.iter().any(|v| v == "--benchmark-sharp") {
+    if args.iter().any(|v| v == "--validate-gpu") {
+        falcon_diorama::gpu::validate(&scene)?;
+    } else if args
+        .iter()
+        .any(|v| v == "--gpu-check" || v == "--benchmark-gpu")
+    {
+        falcon_diorama::gpu::check(
+            &scene,
+            camera,
+            settings,
+            &value(&args, "--output").unwrap_or_else(|| "renders/gpu-check.png".into()),
+            args.iter().any(|v| v == "--benchmark-gpu"),
+        )?;
+    } else if args.iter().any(|v| v == "--benchmark-sharp") {
         viewer::benchmark_sharp(&scene);
     } else if args.iter().any(|v| v == "--benchmark") {
         viewer::benchmark(&scene);
@@ -144,6 +157,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             settings,
             args.iter().any(|v| v == "--demo"),
             args.iter().any(|v| v == "--adaptive"),
+            !args.iter().any(|v| v == "--cpu"),
         )?;
     }
     Ok(())

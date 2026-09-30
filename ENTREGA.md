@@ -3,11 +3,12 @@
 ## Para presentar en vivo
 
 1. Abrir `Iniciar.command` o ejecutar `cargo run --release --offline`. Aparece
-   la ventana raylib; no hace falta abrir el navegador.
+   la ventana raylib con raytracing GPU; no hace falta abrir el navegador.
 2. Probar antes de clase arrastre, flechas y zoom. `Q` alterna Nítido 1200,
    Fluido adaptativo y Retina constante. Inicia en Nítido 1200. Usar Fluido
    para recorridos si hace falta; Retina prioriza detalle y puede verse lento. `H` oculta la ayuda.
-3. Mostrar `1` Principal; luego `2` Motor para enseñar la banda azul y ventiladores.
+3. Comprobar que el pie indica **GPU**. `T` alterna con CPU como respaldo.
+   Mostrar `1` Principal; luego `2` Motor para enseñar la banda azul y ventiladores.
 4. Mostrar `3` Cabina y `4` Refracción. Usar `G` para comparar el vidrio.
 5. Usar `F` y `B` para comparar reflexión y skybox; dejarlos activados al terminar.
 6. Mostrar `6` Droide y la estación de mantenimiento.
@@ -23,7 +24,8 @@ durante el movimiento. Mostrar los detalles con la cámara quieta.
 ## Archivos del proyecto
 
 - `src`: motor de raytracing, escena y visores.
-- `tests`: pruebas de intersecciones, óptica, cámara y renderizado.
+- `tests`: pruebas de intersecciones, óptica, cámara, BVH exportada y renderizado.
+- `shaders`: raytracer GPU escrito en GLSL.
 - `platform` e `Iniciar.command`: lanzador para macOS.
 - `web`: visor opcional para grabar el recorrido.
 - `renders`: capturas, caras del skybox y video `diorama.webm`.
@@ -31,12 +33,18 @@ durante el movimiento. Mostrar los detalles con la cámara quieta.
 
 Los archivos de compilación de `target` se excluyen mediante `.gitignore`.
 
-## Versión inicial CPU
+## Motores GPU y CPU
 
 Incluye el Halcón Milenario, un droide con estación de mantenimiento, cinco materiales, reflexión, refracción, skybox,
-cámara orbital y ventana raylib. El trazado se ejecuta en CPU; raylib recibe
-los píxeles y presenta la imagen. Los modos de nitidez permiten comparar calidad
-y rendimiento en Apple M1.
+cámara orbital y ventana raylib. La versión GPU ejecuta nuestro shader GLSL:
+intersecciones, sombras, texturas, reflexión, refracción y cubemap. Rust construye
+la escena y su BVH; raylib crea la ventana y ejecuta el shader. La versión CPU
+permanece disponible con `T` o `--cpu`. Los modos de nitidez permiten comparar
+calidad y rendimiento en Apple M1.
+
+Antes de entregar, renovar el video de la versión inicial y probar en vivo
+rotación, zoom, Q, T y las seis vistas. La rama `main` conserva la versión CPU
+previa; `gpu-raytracing` contiene la migración GPU.
 
 El recorrido de la versión inicial está enlazado en el README; las capturas
 reflejan la iluminación actualizada. Para reproducirlo desde
