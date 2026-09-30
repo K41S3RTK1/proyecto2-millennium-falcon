@@ -1,15 +1,37 @@
 use crate::{
     geometry::{Block, Bvh, Hit},
-    material::{self, DARK, ENGINE, GLASS, HULL, Material, SAND},
+    material::{self, ARMOR, CLOTH, DARK, ENGINE, GLASS, HULL, Material, PLASMA, SAND},
     math::{Ray, V, noise},
     skybox::Skybox,
 };
+pub const VADER_ORIGIN: V = V::new(1.1, 0., -7.05);
+pub const SABER_BOTTOM: V = V::new(1.91, 1.20, -7.42);
+pub const SABER_TOP: V = V::new(1.91, 2.96, -7.42);
+#[derive(Clone, Copy)]
+pub struct Light {
+    pub position: V,
+    pub color: V,
+    pub intensity: f32,
+    pub radius: f32,
+}
+impl Light {
+    pub fn attenuation(self, p: V) -> f32 {
+        if self.radius == 0. {
+            1.
+        } else {
+            (1. - (self.position - p).len() / self.radius)
+                .max(0.)
+                .powi(2)
+        }
+    }
+}
 pub struct Scene {
     pub blocks: Vec<Block>,
     pub materials: Vec<Material>,
     pub bvh: Bvh,
     pub sky: Skybox,
-    pub lights: Vec<(V, V, f32)>,
+    pub space: Skybox,
+    pub lights: Vec<Light>,
 }
 impl Scene {
     pub fn new() -> Self {
@@ -17,15 +39,33 @@ impl Scene {
         b.port();
         b.falcon();
         b.maintenance();
+        b.vader();
         let bvh = Bvh::build(&b.blocks);
         Self {
             blocks: b.blocks,
             materials: material::materials(),
             bvh,
             sky: Skybox::new(192),
+            space: Skybox::space(768),
             lights: vec![
-                (V::new(-9., 15., -10.), V::new(1.0, 0.80, 0.59), 1.05),
-                (V::new(8., 9., -1.), V::new(0.48, 0.70, 1.), 0.32),
+                Light {
+                    position: V::new(-9., 15., -10.),
+                    color: V::new(1., 0.80, 0.59),
+                    intensity: 1.05,
+                    radius: 0.,
+                },
+                Light {
+                    position: V::new(8., 9., -1.),
+                    color: V::new(0.48, 0.70, 1.),
+                    intensity: 0.32,
+                    radius: 0.,
+                },
+                Light {
+                    position: SABER_BOTTOM + V::new(0., 0.30, -0.09),
+                    color: V::new(1., 0.012, 0.006),
+                    intensity: 3.8,
+                    radius: 3.0,
+                },
             ],
         }
     }
@@ -197,6 +237,235 @@ impl Builder {
                 V::new(0.10, 0.7, 0.15),
                 ENGINE,
                 V::new(1.4, 0.9, 0.4),
+            );
+        }
+    }
+    fn vader(&mut self) {
+        let o = VADER_ORIGIN;
+        let white = V::splat(1.);
+        // Capa de tiras cúbicas: hombros estrechos, faldón ancho y pliegues.
+        for row in 0..13 {
+            let y = 0.14 + row as f32 * 0.12;
+            let half = if row < 4 {
+                6
+            } else if row < 9 {
+                5
+            } else {
+                4
+            };
+            for x in -half..=half {
+                let z = 0.20 + (13 - row) as f32 * 0.023 + if x % 2 == 0 { 0.035 } else { 0. };
+                self.block(
+                    o + V::new(x as f32 * 0.12, y, z),
+                    V::new(0.12, 0.12, 0.10),
+                    CLOTH,
+                    V::splat(if x % 2 == 0 { 1.2 } else { 0.85 }),
+                );
+            }
+        }
+        for side in [-1., 1.] {
+            self.block(
+                o + V::new(side * 0.21, 0.12, -0.13),
+                V::new(0.30, 0.32, 0.49),
+                ARMOR,
+                white,
+            );
+            self.block(
+                o + V::new(side * 0.21, 0.49, 0.),
+                V::new(0.24, 0.60, 0.29),
+                CLOTH,
+                white,
+            );
+            self.block(
+                o + V::new(side * 0.21, 0.40, -0.17),
+                V::new(0.18, 0.37, 0.07),
+                ARMOR,
+                white,
+            );
+            self.block(
+                o + V::new(side * 0.42, 1.41, 0.),
+                V::new(0.27, 0.26, 0.40),
+                ARMOR,
+                white,
+            );
+        }
+        self.block(
+            o + V::new(0., 1.06, 0.),
+            V::new(0.62, 0.70, 0.36),
+            CLOTH,
+            V::splat(1.5),
+        );
+        self.block(
+            o + V::new(0., 1.43, -0.055),
+            V::new(0.65, 0.19, 0.38),
+            ARMOR,
+            white,
+        );
+        // Ribetes de la pechera y cinturón.
+        for x in [-0.24, 0.24] {
+            self.block(
+                o + V::new(x, 1.41, -0.255),
+                V::new(0.065, 0.16, 0.05),
+                HULL,
+                V::splat(0.50),
+            );
+        }
+        self.block(
+            o + V::new(0., 0.80, -0.02),
+            V::new(0.69, 0.13, 0.41),
+            ARMOR,
+            white,
+        );
+        self.block(
+            o + V::new(0., 0.80, -0.25),
+            V::new(0.15, 0.105, 0.04),
+            HULL,
+            V::splat(0.6),
+        );
+        self.block(
+            o + V::new(0., 1.17, -0.235),
+            V::new(0.30, 0.30, 0.10),
+            ARMOR,
+            V::splat(0.45),
+        );
+        for (x, c) in [
+            (-0.085, V::new(0.9, 0.025, 0.015)),
+            (0., V::new(0.4, 0.9, 1.)),
+            (0.085, V::new(0.2, 0.5, 1.)),
+        ] {
+            self.block(
+                o + V::new(x, 1.23, -0.30),
+                V::new(0.049, 0.066, 0.025),
+                HULL,
+                c * 2.,
+            );
+        }
+        for x in [-0.085, 0., 0.085] {
+            self.block(
+                o + V::new(x, 1.11, -0.30),
+                V::new(0.038, 0.07, 0.025),
+                HULL,
+                V::splat(0.7),
+            );
+        }
+        // Brazo izquierdo bajo; derecho extendido sujetando la empuñadura.
+        self.block(
+            o + V::new(-0.49, 1.08, 0.),
+            V::new(0.23, 0.47, 0.28),
+            CLOTH,
+            white,
+        );
+        self.block(
+            o + V::new(-0.50, 0.83, -0.06),
+            V::new(0.24, 0.25, 0.28),
+            ARMOR,
+            white,
+        );
+        self.block(
+            o + V::new(0.54, 1.23, -0.04),
+            V::new(0.20, 0.30, 0.29),
+            CLOTH,
+            white,
+        );
+        self.block(
+            o + V::new(0.69, 1.08, -0.20),
+            V::new(0.36, 0.21, 0.27),
+            CLOTH,
+            white,
+        );
+        self.block(
+            o + V::new(0.81, 1.06, -0.34),
+            V::new(0.23, 0.20, 0.23),
+            ARMOR,
+            white,
+        );
+        // Cúpula, faldón del casco, ojos hundidos y respirador triangular escalonado.
+        for (y, w, d) in [
+            (1.70, 0.73, 0.57),
+            (1.82, 0.66, 0.57),
+            (1.94, 0.62, 0.54),
+            (2.06, 0.50, 0.45),
+            (2.15, 0.31, 0.30),
+        ] {
+            self.block(o + V::new(0., y, 0.025), V::new(w, 0.12, d), ARMOR, white);
+        }
+        for side in [-1., 1.] {
+            self.block(
+                o + V::new(side * 0.35, 1.68, 0.045),
+                V::new(0.14, 0.30, 0.56),
+                ARMOR,
+                white,
+            );
+            self.block(
+                o + V::new(side * 0.155, 1.86, -0.277),
+                V::new(0.23, 0.065, 0.035),
+                ARMOR,
+                V::splat(0.18),
+            );
+            self.block(
+                o + V::new(side * 0.18, 1.77, -0.285),
+                V::new(0.12, 0.08, 0.045),
+                ARMOR,
+                V::splat(1.5),
+            );
+        }
+        self.block(
+            o + V::new(0., 1.86, -0.31),
+            V::new(0.065, 0.22, 0.075),
+            ARMOR,
+            V::splat(1.35),
+        );
+        for (y, w, z) in [
+            (1.75, 0.12, -0.34),
+            (1.68, 0.21, -0.36),
+            (1.61, 0.30, -0.36),
+        ] {
+            self.block(
+                o + V::new(0., y, z),
+                V::new(w, 0.07, 0.08),
+                ARMOR,
+                V::splat(0.5),
+            );
+        }
+        for x in [-0.075, 0., 0.075] {
+            self.block(
+                o + V::new(x, 1.64, -0.407),
+                V::new(0.018, 0.13, 0.012),
+                HULL,
+                V::splat(0.28),
+            );
+        }
+        for x in [-0.24, 0.24] {
+            self.block(
+                o + V::new(x, 1.60, -0.285),
+                V::new(0.08, 0.08, 0.07),
+                HULL,
+                V::splat(0.4),
+            );
+        }
+        // Empuñadura estriada y hoja de plasma en segmentos cúbicos.
+        let h = SABER_BOTTOM - V::new(0., 0.18, 0.);
+        self.block(h, V::new(0.13, 0.36, 0.13), HULL, V::splat(0.7));
+        for i in 0..5 {
+            self.block(
+                h + V::new(0., -0.12 + i as f32 * 0.055, 0.),
+                V::new(0.145, 0.025, 0.145),
+                ARMOR,
+                white,
+            );
+        }
+        self.block(
+            SABER_BOTTOM - V::new(0., 0.02, 0.),
+            V::new(0.19, 0.09, 0.19),
+            ARMOR,
+            white,
+        );
+        for i in 0..22 {
+            self.block(
+                SABER_BOTTOM + V::new(0., 0.04 + i as f32 * 0.08, 0.),
+                V::splat(0.08),
+                PLASMA,
+                white,
             );
         }
     }

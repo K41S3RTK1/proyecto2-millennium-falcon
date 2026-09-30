@@ -18,6 +18,7 @@ pub struct Settings {
     pub reflections: bool,
     pub refractions: bool,
     pub skybox: bool,
+    pub space: bool,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -28,6 +29,7 @@ impl Default for Settings {
             reflections: true,
             refractions: true,
             skybox: true,
+            space: false,
         }
     }
 }
@@ -56,23 +58,55 @@ fn shadow(scene: &Scene, origin: V, light: V) -> V {
     }
     V::default()
 }
+/// Halo analítico alrededor del segmento emisor, recortado por el primer impacto.
+/// Es un resplandor artístico; la iluminación roja usa rayos de sombra separados.
+pub fn saber_glow(ray: Ray, limit: f32) -> V {
+    let a = crate::scene::SABER_BOTTOM;
+    let v = crate::scene::SABER_TOP - a;
+    let w = ray.o - a;
+    let b = ray.d.dot(v);
+    let c = v.dot(v);
+    let d = ray.d.dot(w);
+    let e = v.dot(w);
+    let t = if c - b * b > 1e-6 {
+        ((e - b * d) / (c - b * b)).clamp(0., 1.)
+    } else {
+        (e / c).clamp(0., 1.)
+    };
+    let point = a + v * t;
+    let along = (point - ray.o).dot(ray.d);
+    if along < 0. || along > limit {
+        return V::default();
+    }
+    let distance = (ray.at(along) - point).dot(ray.at(along) - point);
+    let glow = (-distance / 0.009).exp() * 1.8 + (-distance / 0.045).exp() * 0.12;
+    V::new(1., 0.003, 0.001) * glow
+}
 pub fn trace(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -> V {
     let sky = |d| {
         if cfg.skybox {
-            scene.sky.sample(d)
+            if cfg.space {
+                scene.space.sample(d)
+            } else {
+                scene.sky.sample(d)
+            }
         } else {
             V::new(0.05, 0.06, 0.08)
         }
     };
     let Some(hit) = scene.hit(ray, f32::INFINITY) else {
-        return sky(ray.d);
+        return sky(ray.d) + saber_glow(ray, f32::INFINITY);
     };
     let block = scene.blocks[hit.object];
     let mat = &scene.materials[block.material];
     let front = ray.d.dot(hit.normal) < 0.;
     let n = if front { hit.normal } else { -hit.normal };
     let surface = mat.color(hit.point, hit.normal).hadamard(block.tint);
-    let mut diffuse = V::new(0.095, 0.12, 0.17);
+    let mut diffuse = if cfg.space {
+        V::new(0.055, 0.07, 0.115)
+    } else {
+        V::new(0.095, 0.12, 0.17)
+    };
     let mut specular = V::default();
     // Oclusión local de primer impacto para leer uniones y relieves.
     if depth == 0 && cfg.quality > 0 && mat.transparency == 0. {
@@ -95,7 +129,19 @@ pub fn trace(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -> 
         }
         diffuse = diffuse * (1. - occlusion * 0.28);
     }
-    for &(position, color, intensity) in &scene.lights {
+    for (index, &light) in scene.lights.iter().enumerate() {
+        let position = light.position;
+        let color = if cfg.space && index < 2 {
+            light.color.mix(V::new(0.48, 0.65, 1.), 0.65)
+        } else {
+            light.color
+        };
+        let intensity = light.intensity
+            * light.attenuation(hit.point)
+            * if cfg.space && index < 2 { 0.60 } else { 1. };
+        if intensity < 0.001 {
+            continue;
+        }
         let l = (position - hit.point).unit();
         let ndotl = n.dot(l).max(0.);
         if ndotl <= 0. {
@@ -133,8 +179,9 @@ pub fn trace(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -> 
         transmitted = 0.;
     }
     let local = (1. - reflected - transmitted).max(0.);
-    let mut result =
-        (surface.hadamard(diffuse) + specular) * local + mat.emission.hadamard(block.tint);
+    let mut result = (surface.hadamard(diffuse) + specular) * local
+        + mat.emission.hadamard(block.tint)
+        + saber_glow(ray, hit.t);
     let max_depth = if cfg.quality == 0 { 3 } else { 6 };
     if reflected > 0. {
         let d = ray.d.reflect(n);

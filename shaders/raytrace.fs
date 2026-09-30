@@ -6,9 +6,9 @@ out vec4 finalColor;
 uniform sampler2D sceneData;
 uniform sampler2D skyData;
 uniform int nodeCount, blockBase, materialBase, lightBase, lightCount, skySize;
-uniform int quality, reflections, refractions, skyEnabled;
+uniform int quality, reflections, refractions, skyEnabled, spaceMode;
 uniform vec2 resolution;
-uniform vec3 eye, forward, right, up;
+uniform vec3 eye, forward, right, up, saberBottom, saberTop;
 uniform float cameraScale;
 vec4 dataAt(int i) { return texelFetch(sceneData, ivec2(i % 1024, i / 1024), 0); }
 struct Hit { float t; int object; vec3 p; vec3 n; };
@@ -90,7 +90,10 @@ vec3 surfaceColor(Material m,vec3 p,vec3 n) {
     } else if(m.tex==1) f=.7+grain*.3+(abs(v*35.-trunc(v*35.))<.2?.2:0.);
     else if(m.tex==2) f=.97+.03*grain;
     else if(m.tex==3) f=.8+.20*noiseValue(ivec3(floor(p.xzy*2.)))+.16*grain;
-    else f=mod(u,.18)<.025?.35:.85+.15*grain;
+    else if(m.tex==4) f=mod(u,.18)<.025?.35:.85+.15*grain;
+    else if(m.tex==5) f=.82+.12*sin(u*180.)*sin(v*180.)+.06*grain;
+    else if(m.tex==6) f=.93+.07*grain;
+    else f=.9+.1*abs(sin(v*90.));
     return m.albedo*f;
 }
 vec3 sky(vec3 d) {
@@ -117,6 +120,15 @@ vec3 shadow(vec3 o,vec3 light) {
     }
     return vec3(0);
 }
+vec3 saberGlow(vec3 o,vec3 d,float limit) {
+    vec3 v=saberTop-saberBottom,w=o-saberBottom;
+    float b=dot(d,v),c=dot(v,v),dw=dot(d,w),e=dot(v,w);
+    float t=c-b*b>1e-6?clamp((e-b*dw)/(c-b*b),0.,1.):clamp(e/c,0.,1.);
+    vec3 point=saberBottom+v*t;float along=dot(point-o,d);
+    if(along<0. || along>limit) return vec3(0);
+    vec3 delta=o+d*along-point;float distance=dot(delta,delta);
+    return vec3(1.,.003,.001)*(exp(-distance/.009)*1.8+exp(-distance/.045)*.12);
+}
 struct Task { vec3 o; vec3 d; vec3 throughput; float weight; int depth; };
 vec3 traceRay(vec3 origin, vec3 direction) {
     Task tasks[8]; int count=1;
@@ -125,12 +137,13 @@ vec3 traceRay(vec3 origin, vec3 direction) {
     // Un árbol binario de profundidad 6 contiene como máximo 127 tareas.
     for(int step=0;step<127 && count>0;step++) {
         Task task=tasks[--count]; Hit hit;
-        if(!intersectScene(task.o,task.d,1e30,hit)) { result+=task.throughput*sky(task.d); continue; }
+        if(!intersectScene(task.o,task.d,1e30,hit)) { result+=task.throughput*(sky(task.d)+saberGlow(task.o,task.d,1e30)); continue; }
+        result+=task.throughput*saberGlow(task.o,task.d,hit.t);
         int b=blockBase+hit.object*3;
         Material mat=material(int(dataAt(b).w)); vec3 tint=dataAt(b+2).xyz;
         bool front=dot(task.d,hit.n)<0.; vec3 n=front?hit.n:-hit.n;
         vec3 surface=surfaceColor(mat,hit.p,hit.n)*tint;
-        vec3 diffuse=vec3(.095,.12,.17), specular=vec3(0);
+        vec3 diffuse=spaceMode!=0?vec3(.055,.07,.115):vec3(.095,.12,.17), specular=vec3(0);
         if(task.depth==0 && quality>0 && mat.trans==0.) {
             vec3 tangent=normalize(cross(n,abs(n.y)<.9?vec3(0,1,0):vec3(1,0,0))),bitangent=cross(n,tangent);
             float occlusion=0.;
@@ -142,12 +155,16 @@ vec3 traceRay(vec3 origin, vec3 direction) {
         }
         for(int i=0;i<lightCount;i++) {
             vec4 pos=dataAt(lightBase+i*2),color=dataAt(lightBase+i*2+1);
+            float attenuation=color.w>0.?pow(max(1.-length(pos.xyz-hit.p)/color.w,0.),2.):1.;
+            float intensity=pos.w*attenuation;
+            if(spaceMode!=0 && i<2) {intensity*=.60;color.xyz=mix(color.xyz,vec3(.48,.65,1.),.65); }
+            if(intensity<.001) continue;
             vec3 l=normalize(pos.xyz-hit.p); float ndotl=max(dot(n,l),0.);
             if(ndotl<=0.) continue;
             vec3 visibility=shadow(hit.p+n*.002,pos.xyz);
-            diffuse+=color.xyz*visibility*(pos.w*ndotl);
+            diffuse+=color.xyz*visibility*(intensity*ndotl);
             float highlight=pow(max(dot(n,normalize(l-task.d)),0.),mat.shine)*mat.spec;
-            specular+=color.xyz*visibility*(highlight*pos.w);
+            specular+=color.xyz*visibility*(highlight*intensity);
         }
         float reflected=reflections!=0?mat.refl:0.,transparent=refractions!=0?mat.trans:0.;
         float cosI=clamp(-dot(task.d,n),0.,1.),r0=pow((1.-mat.ior)/(1.+mat.ior),2.);

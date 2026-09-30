@@ -3,7 +3,8 @@
 ## Para presentar en vivo
 
 1. Abrir `Iniciar.command` o ejecutar `cargo run --release --offline`. Aparece
-   la ventana raylib con raytracing GPU; no hace falta abrir el navegador.
+   la intro y después la ventana raylib con raytracing GPU. Enter/Espacio salta
+   la intro; `--no-intro` la omite al iniciar. No hace falta abrir el navegador.
 2. Probar antes de clase arrastre, flechas y zoom. `Q` alterna Nítido 1200,
    Fluido adaptativo y Retina constante. Inicia en Nítido 1200. Usar Fluido
    para recorridos si hace falta; Retina prioriza detalle y puede verse lento. `H` oculta la ayuda.
@@ -11,7 +12,8 @@
    Mostrar `1` Principal; luego `2` Motor para enseñar la banda azul y ventiladores.
 4. Mostrar `3` Cabina y `4` Refracción. Usar `G` para comparar el vidrio.
 5. Usar `F` y `B` para comparar reflexión y skybox; dejarlos activados al terminar.
-6. Mostrar `6` Droide y la estación de mantenimiento.
+6. Mostrar `6` Droide, luego `7` Vader y su sable. `C` alterna Tatooine/espacio.
+   `I` permite repetir la intro.
 7. Volver a `1` y pulsar Espacio para el recorrido automático. Espacio lo detiene.
 8. Tener el video `renders/diorama.webm` disponible como respaldo. Para grabar otro,
    ejecutar `cargo run --release --offline -- --web` y usar el visor web opcional.
@@ -35,7 +37,7 @@ Los archivos de compilación de `target` se excluyen mediante `.gitignore`.
 
 ## Motores GPU y CPU
 
-Incluye el Halcón Milenario, un droide con estación de mantenimiento, cinco materiales, reflexión, refracción, skybox,
+Incluye el Halcón Milenario, un droide con estación de mantenimiento, ocho materiales (la rúbrica puntúa hasta cinco), reflexión, refracción, skybox,
 cámara orbital y ventana raylib. La versión GPU ejecuta nuestro shader GLSL:
 intersecciones, sombras, texturas, reflexión, refracción y cubemap. Rust construye
 la escena y su BVH; raylib crea la ventana y ejecuta el shader. La versión CPU
@@ -43,9 +45,17 @@ permanece disponible con `T` o `--cpu`. Los modos de nitidez permiten comparar
 calidad y rendimiento en Apple M1.
 
 Antes de entregar, renovar el video de la versión inicial y probar en vivo
-rotación, zoom, Q, T y las seis vistas. La rama `main` conserva la versión CPU
-previa; `gpu-raytracing` contiene la migración GPU.
+rotación, zoom, Q, T, C, I y las siete vistas. La rama `main` conserva la versión CPU
+previa; `gpu-raytracing` contiene la migración GPU; `escena-cinematica` añade Vader,
+el sable, el segundo cielo y la intro. La etiqueta `gpu-estable-2026-09-30`
+permite recuperar la versión anterior a estas mejoras.
 
 El recorrido de la versión inicial está enlazado en el README; las capturas
 reflejan la iluminación actualizada. Para reproducirlo desde
 GitHub, abrir `renders/diorama.webm` o descargarlo.
+
+## Música y video
+
+La intro funciona sin audio. Para incorporar una grabación autorizada, consultar
+`assets/audio/README.md`. El video publicado sigue siendo el recorrido inicial;
+falta grabar el recorrido final con las nuevas vistas y la intro antes de entregar.

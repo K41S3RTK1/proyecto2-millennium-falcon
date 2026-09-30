@@ -17,13 +17,14 @@ use std::{
     time::{Duration, Instant},
 };
 
-const VIEWS: [&str; 6] = [
+const VIEWS: [&str; 7] = [
     "1  Principal",
     "2  Motor",
     "3  Cabina",
     "4  Refraccion",
     "5  Superior",
     "6  Droide",
+    "7  Vader",
 ];
 pub(crate) fn preset(index: usize) -> Camera {
     match index {
@@ -58,6 +59,13 @@ pub(crate) fn preset(index: usize) -> Camera {
             pitch: 17.,
             distance: 4.6,
             target: V::new(-5.1, 0.70, -5.3),
+            ..Camera::default()
+        },
+        6 => Camera {
+            yaw: 20.,
+            pitch: 12.,
+            distance: 5.7,
+            target: crate::scene::VADER_ORIGIN + V::new(0.2, 1.40, -0.12),
             ..Camera::default()
         },
         _ => Camera::default(),
@@ -121,6 +129,7 @@ pub fn run(
     auto_orbit: bool,
     adaptive: bool,
     prefer_gpu: bool,
+    skip_intro: bool,
 ) -> Result<(), Box<dyn Error>> {
     let (mut window, thread) = raylib::init()
         .size(1200, 800)
@@ -142,6 +151,10 @@ pub fn run(
             }
         }
     }
+    if !skip_intro && let Err(error) = crate::intro::play(&mut window, &thread) {
+        eprintln!("Intro: {error}");
+    }
+    let mut fade_in = Instant::now();
     let worker_scene = scene.clone();
     let cancel = Arc::new(AtomicU64::new(0));
     let worker_cancel = cancel.clone();
@@ -248,6 +261,17 @@ pub fn run(
         if window.is_key_pressed(KEY_SPACE) {
             orbit = !orbit;
         }
+        if window.is_key_pressed(KEY_I) {
+            if let Err(error) = crate::intro::play(&mut window, &thread) {
+                eprintln!("Intro: {error}");
+            }
+            fade_in = Instant::now();
+            changed = true;
+        }
+        if window.is_key_pressed(KEY_C) {
+            settings.space = !settings.space;
+            changed = true;
+        }
         if window.is_key_pressed(KEY_H) {
             help = !help;
         }
@@ -255,9 +279,11 @@ pub fn run(
             request_save = true;
             orbit = false;
         }
-        let keys = [KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX];
+        let keys = [
+            KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX, KEY_SEVEN,
+        ];
         for (i, key) in keys.iter().enumerate() {
-            let button = Rectangle::new(20. + i as f32 * 132., 59., 124., 28.);
+            let button = Rectangle::new(20. + i as f32 * 116., 59., 108., 28.);
             if window.is_key_pressed(*key) || (click && button.check_collision_point_rec(mouse)) {
                 camera = preset(i);
                 orbit = false;
@@ -531,15 +557,25 @@ pub fn run(
             draw.draw_text("Preparando el diorama...", 35, height / 2, 24, accent);
         }
         draw.draw_text("MILLENNIUM FALCON", 20, 17, 27, Color::WHITE);
-        draw.draw_text("DOCKING BAY 94  /  TATOOINE", 400, 24, 16, accent);
+        draw.draw_text(
+            if settings.space {
+                "ORBITA / ESTRELLA DE LA MUERTE"
+            } else {
+                "DOCKING BAY 94 / TATOOINE"
+            },
+            400,
+            24,
+            16,
+            accent,
+        );
         for (i, label) in VIEWS.iter().enumerate() {
             draw.draw_rectangle_rounded(
-                Rectangle::new(20. + i as f32 * 132., 59., 124., 28.),
+                Rectangle::new(20. + i as f32 * 116., 59., 108., 28.),
                 0.2,
                 4,
                 Color::new(32, 44, 57, 255),
             );
-            draw.draw_text(label, 28 + i as i32 * 132, 65, 16, muted);
+            draw.draw_text(label, 28 + i as i32 * 116, 65, 16, muted);
         }
         for (button, label) in [(zoom_in_button, "+"), (zoom_out_button, "-")] {
             draw.draw_rectangle_rounded(button, 0.2, 4, Color::new(32, 44, 57, 255));
@@ -582,10 +618,11 @@ pub fn run(
         );
         draw.draw_text(
             &format!(
-                "F Reflejos {}   G Refraccion {}   B Cielo {}   |   T CPU/GPU   H Ayuda",
+                "F Reflejos {}   G Refraccion {}   B Cielo {}   C Entorno {}   |   T CPU/GPU   I Intro   H Ayuda",
                 if settings.reflections { "SI" } else { "NO" },
                 if settings.refractions { "SI" } else { "NO" },
-                if settings.skybox { "SI" } else { "NO" }
+                if settings.skybox { "SI" } else { "NO" },
+                if settings.space { "ESPACIO" } else { "TATOOINE" }
             ),
             20,
             height - 26,
@@ -607,6 +644,16 @@ pub fn run(
                 148,
                 17,
                 muted,
+            );
+        }
+        let fade = (1. - fade_in.elapsed().as_secs_f32()).max(0.);
+        if fade > 0. {
+            draw.draw_rectangle(
+                0,
+                0,
+                width,
+                height,
+                Color::new(0, 0, 0, (fade * 255.) as u8),
             );
         }
         if now < notice_until {

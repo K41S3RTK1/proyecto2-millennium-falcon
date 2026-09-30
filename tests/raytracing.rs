@@ -118,7 +118,7 @@ fn cubemap_directions_round_trip_on_all_six_faces() {
 #[test]
 fn materials_preserve_energy_and_have_valid_optical_parameters() {
     let mats = material::materials();
-    assert_eq!(mats.len(), 5);
+    assert_eq!(mats.len(), 8);
     for m in &mats {
         assert!(
             m.reflectivity >= 0. && m.transparency >= 0. && m.reflectivity + m.transparency <= 1.
@@ -186,4 +186,29 @@ fn bvh_accepts_empty_and_coincident_geometry() {
     let tree = Bvh::build(&blocks);
     close(tree.hit(&blocks, ray, 100.).unwrap().t, 3.);
     assert!(tree.hit(&blocks, ray, 2.).is_none());
+}
+
+#[test]
+fn saber_halo_respects_occlusion_and_local_light_has_finite_reach() {
+    use falcon_diorama::{
+        render::saber_glow,
+        scene::{Light, SABER_BOTTOM, SABER_TOP},
+    };
+    let middle = (SABER_BOTTOM + SABER_TOP) * 0.5;
+    let ray = Ray::new(middle + V::new(0., 0., -2.), V::new(0., 0., 1.));
+    assert!(saber_glow(ray, 3.).x > 1.);
+    assert_eq!(saber_glow(ray, 1.), V::default());
+    assert_eq!(saber_glow(Ray::new(ray.o, -ray.d), 10.), V::default());
+    let far = Ray::new(ray.o + V::new(2., 0., 0.), ray.d);
+    assert!(saber_glow(far, 10.).len() < 1e-5);
+    let light = Light {
+        position: middle,
+        color: V::new(1., 0., 0.),
+        intensity: 3.,
+        radius: 3.,
+    };
+    close(light.attenuation(middle), 1.);
+    close(light.attenuation(middle + V::new(1.5, 0., 0.)), 0.25);
+    close(light.attenuation(middle + V::new(3., 0., 0.)), 0.);
+    close(light.attenuation(middle + V::new(20., 0., 0.)), 0.);
 }

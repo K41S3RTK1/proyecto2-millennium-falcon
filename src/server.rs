@@ -93,6 +93,7 @@ fn request(s: &mut TcpStream, scene: &Scene) -> io::Result<()> {
                 quality: num(query, "quality", 1., 0., 2.) as u8,
                 reflections: num(query, "reflections", 1., 0., 1.) > 0.,
                 refractions: num(query, "refractions", 1., 0., 1.) > 0.,
+                space: num(query, "space", 0., 0., 1.) > 0.,
                 skybox: num(query, "skybox", 1., 0., 1.) > 0.,
             };
             let frame = render::render(scene, camera, cfg);

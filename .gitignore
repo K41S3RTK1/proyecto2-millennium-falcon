@@ -7,3 +7,6 @@
 /renders/composition.png
 
 /renders/gpu-check.png
+/assets/audio/*.ogg
+/assets/audio/*.mp3
+/assets/audio/*.wav

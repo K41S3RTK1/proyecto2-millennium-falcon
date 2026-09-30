@@ -36,6 +36,7 @@ pub struct Renderer {
     shader: Shader,
     data: Texture2D,
     sky: Texture2D,
+    space: Texture2D,
     target: Option<RenderTexture2D>,
 }
 impl Renderer {
@@ -81,13 +82,19 @@ impl Renderer {
                 Texture::Glass => 2.,
                 Texture::Sand => 3.,
                 Texture::Engine => 4.,
+                Texture::Cloth => 5.,
+                Texture::Armor => 6.,
+                Texture::Plasma => 7.,
             };
             data.push([m.emission.x, m.emission.y, m.emission.z, tex]);
         }
         let light_base = data.len();
-        for &(p, c, intensity) in &scene.lights {
+        for &light in &scene.lights {
+            let p = light.position;
+            let c = light.color;
+            let intensity = light.intensity;
             data.push([p.x, p.y, p.z, intensity]);
-            data.push([c.x, c.y, c.z, 0.]);
+            data.push([c.x, c.y, c.z, light.radius]);
         }
         let data_height = data.len().div_ceil(1024);
         data.resize(data_height * 1024, [0.; 4]);
@@ -99,6 +106,13 @@ impl Renderer {
             .map(|v| [v.x, v.y, v.z, 1.])
             .collect();
         let sky = float_texture(&sky, size, size * 6)?;
+        let (faces, space_size) = scene.space.faces();
+        let space: Vec<_> = faces
+            .iter()
+            .flatten()
+            .map(|v| [v.x, v.y, v.z, 1.])
+            .collect();
+        let space = float_texture(&space, space_size, space_size * 6)?;
         for (name, value) in [
             ("nodeCount", node_count),
             ("blockBase", block_base),
@@ -110,6 +124,13 @@ impl Renderer {
             let loc = shader.get_shader_location(name);
             shader.set_shader_value(loc, value as i32);
         }
+        for (name, value) in [
+            ("saberBottom", crate::scene::SABER_BOTTOM),
+            ("saberTop", crate::scene::SABER_TOP),
+        ] {
+            let loc = shader.get_shader_location(name);
+            shader.set_shader_value(loc, vector(value));
+        }
         println!(
             "GPU: {} nodos BVH, {} bloques; GLSL 330, datos RGBA32F",
             node_count,
@@ -119,6 +140,7 @@ impl Renderer {
             shader,
             data,
             sky,
+            space,
             target: None,
         })
     }
@@ -157,6 +179,15 @@ impl Renderer {
             ("reflections", i32::from(cfg.reflections)),
             ("refractions", i32::from(cfg.refractions)),
             ("skyEnabled", i32::from(cfg.skybox)),
+            ("spaceMode", i32::from(cfg.space)),
+            (
+                "skySize",
+                if cfg.space {
+                    self.space.width()
+                } else {
+                    self.sky.width()
+                },
+            ),
         ] {
             let loc = self.shader.get_shader_location(name);
             self.shader.set_shader_value(loc, value);
@@ -176,7 +207,15 @@ impl Renderer {
         // los recursos siguen vivos hasta que se termina este pase.
         unsafe {
             ffi::SetShaderValueTexture(raw_shader, scene_loc, *self.data.as_ref());
-            ffi::SetShaderValueTexture(raw_shader, sky_loc, *self.sky.as_ref());
+            ffi::SetShaderValueTexture(
+                raw_shader,
+                sky_loc,
+                *if cfg.space {
+                    self.space.as_ref()
+                } else {
+                    self.sky.as_ref()
+                },
+            );
         }
         draw.draw_rectangle(0, 0, cfg.width as i32, cfg.height as i32, Color::WHITE);
         Ok(())
@@ -214,7 +253,7 @@ pub fn check(
     crate::png::save(output, cfg.width, cfg.height, &pixels)?;
     println!("GPU: imagen guardada en {output}");
     if benchmark {
-        for index in [0, 1, 2, 3, 4, 5] {
+        for index in [0, 1, 2, 3, 4, 5, 6] {
             let mut cam = crate::viewer::preset(index);
             let mut times = Vec::new();
             for n in 0..13 {
@@ -245,7 +284,7 @@ pub fn check(
 }
 
 /// Comparación reproducible de ambos motores con la misma escena y cámara.
-/// Incluye las seis vistas y cada interruptor óptico; requiere un contexto GPU.
+/// Incluye las siete vistas y cada interruptor óptico; requiere un contexto GPU.
 pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
     let (mut window, thread) = raylib::init()
         .size(640, 400)
@@ -254,8 +293,8 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
         .build();
     let mut renderer = Renderer::new(&mut window, &thread, scene)?;
     let mut failed = false;
-    for index in 0..6 {
-        for variant in 0..5 {
+    for index in 0..7 {
+        for variant in 0..6 {
             let cfg = Settings {
                 width: 400,
                 height: 240,
@@ -263,6 +302,7 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
                 reflections: variant != 2,
                 refractions: variant != 3,
                 skybox: variant != 4,
+                space: variant == 5,
             };
             let camera = crate::viewer::preset(index);
             renderer.render(&mut window, &thread, camera, cfg)?;
@@ -307,7 +347,7 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
     if failed {
         Err("La comparación CPU/GPU excedió la tolerancia visual".into())
     } else {
-        println!("Validación CPU/GPU: 30 comparaciones aprobadas");
+        println!("Validación CPU/GPU: 42 comparaciones aprobadas");
         Ok(())
     }
 }

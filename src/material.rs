@@ -4,6 +4,9 @@ pub const DARK: usize = 1;
 pub const GLASS: usize = 2;
 pub const SAND: usize = 3;
 pub const ENGINE: usize = 4;
+pub const CLOTH: usize = 5;
+pub const ARMOR: usize = 6;
+pub const PLASMA: usize = 7;
 #[derive(Clone, Copy)]
 pub enum Texture {
     Hull,
@@ -11,6 +14,9 @@ pub enum Texture {
     Glass,
     Sand,
     Engine,
+    Cloth,
+    Armor,
+    Plasma,
 }
 pub struct Material {
     pub name: &'static str,
@@ -80,6 +86,39 @@ pub fn materials() -> Vec<Material> {
             ior: 1.,
             emission: V::new(0.035, 0.55, 1.8),
         },
+        Material {
+            name: "Tejido de la capa",
+            texture: Texture::Cloth,
+            albedo: V::new(0.022, 0.027, 0.038),
+            specular: 0.09,
+            shininess: 8.,
+            transparency: 0.,
+            reflectivity: 0.01,
+            ior: 1.,
+            emission: V::default(),
+        },
+        Material {
+            name: "Armadura negra",
+            texture: Texture::Armor,
+            albedo: V::new(0.045, 0.052, 0.068),
+            specular: 0.65,
+            shininess: 180.,
+            transparency: 0.,
+            reflectivity: 0.09,
+            ior: 1.,
+            emission: V::default(),
+        },
+        Material {
+            name: "Plasma del sable",
+            texture: Texture::Plasma,
+            albedo: V::new(1., 0.035, 0.018),
+            specular: 0.2,
+            shininess: 60.,
+            transparency: 0.,
+            reflectivity: 0.02,
+            ior: 1.,
+            emission: V::new(14., 0.9, 0.65),
+        },
     ]
 }
 impl Material {
@@ -93,6 +132,11 @@ impl Material {
         };
         let grain = noise((u * 48.).floor() as i32, (v * 48.).floor() as i32, 31);
         match self.texture {
+            Texture::Cloth => {
+                self.albedo * (0.82 + 0.12 * ((u * 180.).sin() * (v * 180.).sin()) + 0.06 * grain)
+            }
+            Texture::Armor => self.albedo * (0.93 + 0.07 * grain),
+            Texture::Plasma => self.albedo * (0.9 + 0.1 * (v * 90.).sin().abs()),
             Texture::Hull => {
                 let seam = u.rem_euclid(0.72) < 0.014 || v.rem_euclid(0.72) < 0.014;
                 let panel = noise((u / 0.72).floor() as i32, (v / 0.72).floor() as i32, 7);

@@ -1,15 +1,15 @@
 # Millennium Falcon — Docking Bay 94
 
-Diorama de Star Wars construido con **5,596 bloques** y renderizado por raytracing
+Diorama de Star Wars construido con **5,814 bloques** y renderizado por raytracing
 implementado desde cero en Rust y GLSL. La nave está estacionada en un pequeño puerto
 espacial desértico, con edificios de arenisca, luces, carga, un depósito de cristal
-y un droide astromecánico junto a su estación de mantenimiento.
+un droide astromecánico junto a su estación de mantenimiento y Vader con sable rojo.
 
 [![Millennium Falcon en el puerto espacial](renders/falcon.png)](renders/diorama.webm)
 
 **[▶ Ver el video del diorama](renders/diorama.webm)** — Recorrido de la versión inicial:
 42 segundos, giro de 360° y acercamiento a la cabina. Las capturas muestran la
-iluminación actualizada. El video se genera desde el propio visor, sin editores
+versión actual; el video todavía no incluye Vader, el cielo espacial ni la intro. El video se genera desde el propio visor, sin editores
 ni paquetes adicionales. El archivo está incluido en `renders/diorama.webm`.
 
 ## Ejecutar
@@ -29,7 +29,8 @@ Después de descargar las dependencias una vez se puede agregar `--offline`.
 Usar siempre `--release` para presentar; la compilación de depuración es más lenta.
 El lanzador genera una app local en `target/Millennium Falcon.app`.
 `cargo run --release --offline -- --demo` inicia directamente el recorrido.
-La ventana inicia con el **raytracer GPU**; `--cpu` permite usar el motor CPU de
+Al abrir aparece un prólogo de 26 segundos, saltable con Enter o Espacio.
+Después, la ventana inicia con el **raytracer GPU**; `--cpu` permite usar el motor CPU de
 respaldo. Si el shader no compila, la aplicación vuelve automáticamente a CPU.
 
 ### Controles de la ventana
@@ -46,6 +47,10 @@ respaldo. Si el shader no compila, la aplicación vuelve automáticamente a CPU.
 | Activar/desactivar skybox | `B` |
 | Nitidez durante el movimiento | `Q` o botón superior: Nítido 1200 → Fluido → Retina |
 | Alternar raytracer CPU / GPU | `T` (misma cámara y efectos) |
+| Vader y sable | `7` o botón Vader |
+| Cambiar Tatooine / espacio | `C` |
+| Repetir introducción | `I` |
+| Saltar introducción / silenciar su música | Enter o Espacio / `M` |
 | Mostrar/ocultar ayuda | `H` |
 | Guardar imagen de calidad | `S` → `renders/captura.png`, 2560 px de ancho (mantener cámara quieta) |
 | Salir | Escape o cerrar la ventana |
@@ -88,16 +93,17 @@ El resultado incluye transferencia y copia de píxeles; no mide solamente el env
 de instrucciones a la GPU. Usa tres cuadros de calentamiento y diez medidos por
 vista. El encuadre gira 0.7 grados por cuadro.
 
-Medición en Apple M1 (1200×644, calidad interactiva, todos los efectos activos):
+Medición con Vader en Apple M1 (1200×644, calidad interactiva, Tatooine y todos los efectos activos):
 
 | Vista | Tiempo medio, con lectura | Cuadros/s del benchmark |
 |---|---:|---:|
-| Principal | 14.8 ms | 67.4 |
-| Motor | 22.3 ms | 44.8 |
-| Cabina | 43.0 ms | 23.2 |
-| Refracción | 40.2 ms | 24.9 |
-| Superior | 14.7 ms | 68.1 |
-| Droide | 21.2 ms | 47.1 |
+| Principal | 15.2 ms | 65.8 |
+| Motor | 24.2 ms | 41.4 |
+| Cabina | 64.7 ms | 15.4 |
+| Refracción | 44.8 ms | 22.3 |
+| Superior | 14.3 ms | 69.7 |
+| Droide | 23.6 ms | 42.4 |
+| Vader | 32.6 ms | 30.7 |
 
 Estas cifras son una medición, no un mínimo garantizado. Cambian con el encuadre
 y la carga del equipo; la ventana limita la presentación a 60 FPS. En vidrio,
@@ -131,13 +137,13 @@ cargo run --release --offline -- --benchmark
 
 | Apartado | Implementación y evidencia |
 |---|---|
-| Complejidad (30, subjetivo) | Casco circular escalonado, dos mandíbulas, pasillo y cabina lateral, antena, torreta con cuatro cañones, seis ventiladores, soportes de aterrizaje, rampa, edificios, carga y droide con estación de mantenimiento. |
+| Complejidad (30, subjetivo) | Casco circular escalonado, dos mandíbulas, pasillo y cabina lateral, antena, torreta con cuatro cañones, seis ventiladores, soportes de aterrizaje, rampa, edificios, carga, droide con estación de mantenimiento y Vader con capa y sable. |
 | Atractivo visual (20, subjetivo) | Composición sobre base finita, materiales con textura, luz cálida y de relleno, sombras, oclusión local y suavizado de bordes. |
 | Rotación y zoom (20) | Cámara orbital interactiva alrededor de un objetivo, control de azimut, elevación y distancia. Se recalculan los rayos al moverla. |
-| Materiales (hasta 25) | Cinco materiales con su propia textura y parámetros de albedo, especular, transparencia y reflectividad. Tabla siguiente. |
+| Materiales (hasta 25) | Cinco materiales base más tres superficies para Vader; cada uno con textura y parámetros de albedo, especular, transparencia y reflectividad. Tabla siguiente. |
 | Refracción (10) | Ley de Snell, índice 1.5 para vidrio, interfaces de entrada y salida, reflexión interna total. Vidrio en cabina y depósito; su interior permite observar el desplazamiento óptico. |
 | Reflexión (5) | Rayos secundarios reflejados en metal pulido y vidrio, con mezcla de Fresnel para el material transparente. |
-| Skybox (20) | Cubemap de seis caras, muestreo por dirección y filtrado bilineal. Entorno desértico con dos soles, visible también en reflejos. |
+| Skybox (20) | Cubemap de seis caras, muestreo por dirección y filtrado bilineal. Entornos intercambiables: desierto con dos soles y espacio con estrellas y estación parcialmente destruida, visibles también en reflejos. |
 | Entrega | Código fuente, capturas y video incluidos en el repositorio. |
 
 ## Iluminación y presentación
@@ -146,7 +152,7 @@ Una luz principal cálida define el volumen y una luz de relleno azul conserva
 los detalles de las caras en sombra. La exposición y la luz ambiente se ajustan
 para distinguir paneles del casco, ventiladores y pasillo lateral. La plataforma
 central tiene un tono más oscuro que la arena exterior y el motor mantiene una
-banda azul emisiva. La escena contiene 5,596 bloques y dos luces.
+banda azul emisiva. La escena contiene 5,814 bloques y tres luces: dos generales y una roja de alcance limitado junto al sable.
 
 ## Zona de mantenimiento
 
@@ -159,7 +165,45 @@ La tecla **6** abre una vista cercana. Desde ahí también se puede rotar y usar
 
 ![Droide y estación de mantenimiento](renders/droide.png)
 
-## Cinco materiales
+## Vader, sable y entorno espacial
+
+La vista **7** muestra el casco escalonado, respirador, panel del pecho, capa con
+pliegues, botas y empuñadura estriada. La tela y la armadura tienen respuestas
+ópticas distintas. El sable contiene bloques emisivos y un halo analítico
+recortado por la distancia al primer impacto; la luz roja local utiliza sombras
+y atenúa su intensidad hasta cero a tres unidades. El halo es un efecto artístico,
+no una simulación de dispersión volumétrica ni iluminación global.
+
+![Vader con sable rojo](renders/vader.png)
+
+**C** cambia de entorno. El cielo espacial se genera por código en un cubemap de
+768 píxeles por cara, con estrellas y una estación de combate parcialmente
+destruida. No añade bloques a la BVH. Su iluminación de relleno es más fría.
+El cielo de Tatooine se conserva y **B** permite desactivar cualquiera de ellos.
+
+![Diorama en el espacio](renders/espacio.png)
+
+## Introducción
+
+El prólogo presenta un texto original sobre un joven programador, seguido por
+letras amarillas que se alejan en perspectiva. Termina con un fundido y la entrada
+al diorama. **Enter/Espacio** lo salta, **I** lo repite y `--no-intro` abre
+directamente la escena. El texto utiliza una fuente del sistema cuando está
+disponible y la fuente integrada de raylib como alternativa; no se distribuyen
+fuentes externas. La introducción pertenece a la presentación nativa.
+
+![Texto en perspectiva](renders/intro.png)
+
+La música es opcional: colocar una grabación autorizada en `assets/audio/intro.ogg`,
+`intro.mp3` o `intro.wav`. Se reproduce con raylib, **M** silencia y se detiene al
+terminar o saltar la intro. No se incluye una grabación musical en el repositorio;
+los archivos locales de audio están excluidos de Git. Sin archivo, la intro
+funciona en silencio.
+
+Los tres materiales de Vader enriquecen el aspecto visual; la rúbrica limita la
+puntuación por materiales a cinco, aunque la escena incluya ocho.
+
+## Materiales
 
 Los colores se calculan en espacio lineal. Los valores RGB de albedo están entre
 0 y 1. Un cero en transparencia o reflectividad es intencional para materiales
@@ -172,8 +216,11 @@ opacos o mates. Las variantes de color del casco no se cuentan como materiales e
 | Vidrio de cabina | Variación superficial fina con tinte azulado | 0.63, 0.83, 0.90 | 0.95 / 180 | 0.86 | 0.08 | 1.5 |
 | Arenisca | Grano y variación por bloque | 0.61, 0.39, 0.20 | 0.06 / 12 | 0 | 0 | 1.0 |
 | Paneles del motor | Franjas y celdas luminosas | 0.12, 0.66, 0.95 | 0.65 / 85 | 0 | 0.16 | 1.0 |
+| Tejido de la capa | Trama de fibras | 0.022, 0.027, 0.038 | 0.09 / 8 | 0 | 0.01 | 1.0 |
+| Armadura negra | Acabado fino con grano | 0.045, 0.052, 0.068 | 0.65 / 180 | 0 | 0.09 | 1.0 |
+| Plasma del sable | Bandas de energía | 1.0, 0.035, 0.018 | 0.20 / 60 | 0 | 0.02 | 1.0 |
 
-Las cinco texturas son procedurales y deterministas: se generan por código, con
+Las ocho texturas son procedurales y deterministas: se generan por código, con
 muestreo de coordenadas de cada cara. El motor además tiene emisión para dar
 apariencia luminosa; no se simula iluminación global por emisión.
 
@@ -189,7 +236,7 @@ apariencia luminosa; no se simula iluminación global por emisión.
 
 ## Dependencias
 
-La única dependencia directa es **raylib 6**, utilizada para ventana, entrada,
+La única dependencia directa es **raylib 6**, utilizada para ventana, entrada, audio opcional,
 texto, ejecución del shader propio y presentación de la imagen. Sus dependencias transitivas quedan registradas
 en `Cargo.lock`.
 
@@ -273,7 +320,7 @@ la grabación requiere uno que sí los admita.
 `camera.rs` maneja la cámara; `skybox.rs` genera y muestrea el cubemap;
 `png.rs` codifica la imagen; `viewer.rs` contiene la ventana, el renderizado
 asíncrono y la resolución adaptativa; `gpu.rs` carga los datos y el shader;
-`shaders/raytrace.fs` calcula la imagen GPU; `server.rs` conserva el visor web opcional.
+`shaders/raytrace.fs` calcula la imagen GPU; `intro.rs` y `shaders/crawl.fs` muestran el prólogo; `server.rs` conserva el visor web opcional.
 
 ## Verificar
 
@@ -292,8 +339,8 @@ la escena completa: rayos paralelos, impactos rasantes, orígenes dentro de bloq
 límites de distancia y geometría coincidente. La prueba de empaquetado verifica
 que la BVH exportada para GPU conserva todos los bloques y los impactos.
 
-`--validate-gpu` necesita un contexto gráfico y compara 30 imágenes: seis vistas,
-calidad interactiva/final y los tres efectos desactivados por separado. Informa
+`--validate-gpu` necesita un contexto gráfico y compara 42 imágenes: siete vistas,
+calidad interactiva/final, los tres efectos desactivados por separado y el cielo espacial. Informa
 error medio por canal y proporción de píxeles con diferencia mayor que 32/255.
 La tolerancia es error medio ≤1/255 y como máximo 0.5 % de píxeles por encima de
 ese umbral, para admitir diferencias de redondeo en aristas compartidas.
