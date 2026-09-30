@@ -1,6 +1,6 @@
 # Audio local
 
-Copiar los siete WAV en esta carpeta, conservando exactamente estos nombres:
+Copiar los nueve WAV en esta carpeta, conservando exactamente estos nombres:
 
 | Archivo | Duración de la grabación local | Uso |
 |---|---:|---|
@@ -11,6 +11,8 @@ Copiar los siete WAV en esta carpeta, conservando exactamente estos nombres:
 | `LS FX.wav` | 13.653 s | Vista 7, una vez antes del tema de Vader |
 | `R2D2 FX.wav` | 3.413 s | Vista 6, una vez antes de cantina |
 | `MF FX.wav` | 8.192 s | Vista 2, una vez antes de cantina |
+| `BLASTER FX.wav` | 2.048 s | Vista 8, una vez antes de cantina |
+| `DISPARO FX.wav` | 0.683 s | Cada disparo manual en vista 8 |
 
 Las grabaciones locales son WAV PCM, 48 kHz, estéreo, 24 bits. Raylib lee su
 duración real; no se recortan ni convierten. Repetir una tecla de efecto reinicia

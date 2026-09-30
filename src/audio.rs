@@ -16,9 +16,11 @@ pub enum Track {
     Saber,
     Droid,
     Falcon,
+    Blaster,
+    Shot,
 }
 impl Track {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 9] = [
         Self::Theme,
         Self::Cantina,
         Self::Vader,
@@ -26,6 +28,8 @@ impl Track {
         Self::Saber,
         Self::Droid,
         Self::Falcon,
+        Self::Blaster,
+        Self::Shot,
     ];
     pub fn filename(self) -> &'static str {
         match self {
@@ -36,6 +40,8 @@ impl Track {
             Self::Saber => "LS FX.wav",
             Self::Droid => "R2D2 FX.wav",
             Self::Falcon => "MF FX.wav",
+            Self::Blaster => "BLASTER FX.wav",
+            Self::Shot => "DISPARO FX.wav",
         }
     }
     pub fn looping(self) -> bool {
@@ -56,6 +62,7 @@ pub enum Event {
     SkipIntro,
     FinishIntro,
     View(usize),
+    Fire,
     Finished(Track),
     ToggleMute,
     Stop,
@@ -97,6 +104,7 @@ impl Sequence {
             Event::View(view) if !self.in_intro => {
                 self.view = view;
                 let track = match view {
+                    7 => Track::Blaster,
                     6 => Track::Saber,
                     5 => Track::Droid,
                     1 => Track::Falcon,
@@ -104,6 +112,7 @@ impl Sequence {
                 };
                 self.select(Some(track), track != Track::Cantina);
             }
+            Event::Fire if !self.in_intro && self.view == 7 => self.select(Some(Track::Shot), true),
             Event::Finished(track) if self.track == Some(track) => match track {
                 Track::Theme => {
                     self.theme_finished = true;
@@ -112,7 +121,9 @@ impl Sequence {
                 Track::Saber if !self.in_intro && self.view == 6 => {
                     self.select(Some(Track::Vader), false)
                 }
-                Track::Tie | Track::Droid | Track::Falcon if !self.in_intro => {
+                Track::Tie | Track::Droid | Track::Falcon | Track::Blaster | Track::Shot
+                    if !self.in_intro =>
+                {
                     self.select(Some(Track::Cantina), false)
                 }
                 _ => {}
@@ -127,7 +138,7 @@ impl Sequence {
 pub struct Status {
     pub track: Option<Track>,
     pub position: f32,
-    pub durations: [f32; 7],
+    pub durations: [f32; 9],
     pub theme_finished: bool,
     pub muted: bool,
     pub available: bool,
@@ -137,7 +148,9 @@ impl Default for Status {
         Self {
             track: None,
             position: 0.,
-            durations: [90.112, 90.112, 54.6133, 4.096, 13.6533, 3.4133, 8.192],
+            durations: [
+                90.112, 90.112, 54.6133, 4.096, 13.6533, 3.4133, 8.192, 2.048, 0.682667,
+            ],
             theme_finished: false,
             muted: false,
             available: false,
@@ -312,7 +325,7 @@ impl Drop for Audio {
 pub fn check() -> Result<(), Box<dyn std::error::Error>> {
     let audio = Audio::new();
     if !audio.status().available {
-        return Err("No se cargaron los siete archivos de audio".into());
+        return Err("No se cargaron los nueve archivos de audio".into());
     }
     for track in Track::ALL {
         println!(
@@ -348,6 +361,8 @@ pub fn check() -> Result<(), Box<dyn std::error::Error>> {
         (Event::View(6), Track::Saber, Track::Vader),
         (Event::View(5), Track::Droid, Track::Cantina),
         (Event::View(1), Track::Falcon, Track::Cantina),
+        (Event::View(7), Track::Blaster, Track::Cantina),
+        (Event::Fire, Track::Shot, Track::Cantina),
     ] {
         audio.event(event);
         wait(Some(effect))?;
@@ -369,7 +384,12 @@ pub fn check() -> Result<(), Box<dyn std::error::Error>> {
             return Err(format!("La música no volvió al inicio del bucle: {status:?}").into());
         }
     }
-    for (view, effect) in [(6, Track::Saber), (5, Track::Droid), (1, Track::Falcon)] {
+    for (view, effect) in [
+        (6, Track::Saber),
+        (5, Track::Droid),
+        (1, Track::Falcon),
+        (7, Track::Blaster),
+    ] {
         audio.event(Event::View(view));
         wait(Some(effect))?;
         thread::sleep(Duration::from_millis(250));
@@ -380,8 +400,18 @@ pub fn check() -> Result<(), Box<dyn std::error::Error>> {
             return Err(format!("El efecto no se reinició: {status:?}").into());
         }
     }
+    for _ in 0..2 {
+        audio.event(Event::Fire);
+        wait(Some(Track::Shot))?;
+        thread::sleep(Duration::from_millis(250));
+        audio.event(Event::Fire);
+        thread::sleep(Duration::from_millis(50));
+        if audio.status().position > 0.2 {
+            return Err("No se reinició el disparo manual".into());
+        }
+    }
     audio.event(Event::BeginIntro);
     wait(None)?;
-    println!("Audio: siete archivos, secuencias y bucles verificados sin superposición.");
+    println!("Audio: nueve archivos, secuencias y bucles verificados sin superposición.");
     Ok(())
 }

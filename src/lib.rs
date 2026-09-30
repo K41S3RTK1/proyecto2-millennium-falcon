@@ -1,4 +1,5 @@
 pub mod audio;
+pub mod blaster;
 pub mod camera;
 pub mod geometry;
 pub mod gpu;

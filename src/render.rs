@@ -19,6 +19,7 @@ pub struct Settings {
     pub refractions: bool,
     pub skybox: bool,
     pub space: bool,
+    pub shot: crate::blaster::Shot,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -30,6 +31,7 @@ impl Default for Settings {
             refractions: true,
             skybox: true,
             space: false,
+            shot: crate::blaster::Shot::default(),
         }
     }
 }
@@ -95,7 +97,7 @@ pub fn trace(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -> 
         }
     };
     let Some(hit) = scene.hit(ray, f32::INFINITY) else {
-        return sky(ray.d) + saber_glow(ray, f32::INFINITY);
+        return sky(ray.d) + saber_glow(ray, f32::INFINITY) + cfg.shot.glow(ray, f32::INFINITY);
     };
     let block = scene.blocks[hit.object];
     let mat = &scene.materials[block.material];
@@ -181,7 +183,8 @@ pub fn trace(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -> 
     let local = (1. - reflected - transmitted).max(0.);
     let mut result = (surface.hadamard(diffuse) + specular) * local
         + mat.emission.hadamard(block.tint)
-        + saber_glow(ray, hit.t);
+        + saber_glow(ray, hit.t)
+        + cfg.shot.glow(ray, hit.t);
     let max_depth = if cfg.quality == 0 { 3 } else { 6 };
     if reflected > 0. {
         let d = ray.d.reflect(n);

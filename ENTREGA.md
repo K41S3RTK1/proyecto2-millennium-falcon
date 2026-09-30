@@ -15,8 +15,10 @@
 6. Mostrar `6` Droide, luego `7` Vader y su sable. `C` alterna Tatooine/espacio.
    `I` permite repetir la intro; `M` silencia todo el audio. Al pulsar `7`,
    esperar los 13.653 segundos del sable para escuchar el tema de Vader.
-7. Volver a `1` y pulsar Espacio para el recorrido automático. Espacio lo detiene.
-8. Tener el video `renders/diorama.webm` disponible como respaldo. Para grabar otro,
+7. Probar `8` Rebeldes: escuchar el efecto de entrada y pulsar `.` o Disparar
+   para lanzar un proyectil con sonido. Cambiar de vista debe detener el efecto.
+8. Volver a `1` y pulsar Espacio para el recorrido automático. Espacio lo detiene.
+9. Tener el video `renders/diorama.webm` disponible como respaldo. Para grabar otro,
    ejecutar `cargo run --release --offline -- --web` y usar el visor web opcional.
 
 El indicador de imágenes/s mide cuadros nuevos mostrados; no confundirlo con
@@ -46,7 +48,7 @@ permanece disponible con `T` o `--cpu`. Los modos de nitidez permiten comparar
 calidad y rendimiento en Apple M1.
 
 Antes de entregar, renovar el video de la versión inicial y probar en vivo
-rotación, zoom, Q, T, C, I y las siete vistas. La rama `main` conserva la versión CPU
+rotación, zoom, Q, T, C, I y las ocho vistas. La rama `main` conserva la versión CPU
 previa; `gpu-raytracing` contiene la migración GPU; `escena-cinematica` añade Vader,
 el sable, el segundo cielo y la intro. La etiqueta `gpu-estable-2026-09-30`
 permite recuperar la versión anterior a estas mejoras.
@@ -58,8 +60,8 @@ GitHub, abrir `renders/diorama.webm` o descargarlo.
 ## Música y video
 
 La intro dura aproximadamente 94.112 segundos: frase azul de 4 segundos y
-90.112 segundos del tema musical. Preparar los siete WAV siguiendo
+90.112 segundos del tema musical. Preparar los nueve WAV siguiendo
 `assets/audio/README.md`: son archivos locales excluidos de Git, por lo que hay
 que copiarlos por separado si se usa otra computadora. Probar los efectos con
-`2`, `6`, `7`, el salto de intro y el cambio de cámaras; nunca deben superponerse. El video publicado sigue siendo el recorrido inicial;
+`2`, `6`, `7`, `8`, el salto de intro y el cambio de cámaras; nunca deben superponerse. El video publicado sigue siendo el recorrido inicial;
 falta grabar el recorrido final con las nuevas vistas y la intro antes de entregar.

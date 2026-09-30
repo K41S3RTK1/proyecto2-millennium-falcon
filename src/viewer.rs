@@ -17,7 +17,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-const VIEWS: [&str; 7] = [
+const VIEWS: [&str; 8] = [
     "1  Principal",
     "2  Motor",
     "3  Cabina",
@@ -25,6 +25,7 @@ const VIEWS: [&str; 7] = [
     "5  Superior",
     "6  Droide",
     "7  Vader",
+    "8 Rebeldes",
 ];
 pub(crate) fn preset(index: usize) -> Camera {
     match index {
@@ -59,6 +60,13 @@ pub(crate) fn preset(index: usize) -> Camera {
             pitch: 17.,
             distance: 4.6,
             target: V::new(-5.1, 0.70, -5.3),
+            ..Camera::default()
+        },
+        7 => Camera {
+            yaw: 115.,
+            pitch: 14.,
+            distance: 6.8,
+            target: V::new(6.5, 1.15, 0.15),
             ..Camera::default()
         },
         6 => Camera {
@@ -207,6 +215,9 @@ pub fn run(
     let mut refined_level = 0;
     let mut last_input = Instant::now();
     let mut orbit = auto_orbit;
+    let mut selected_view = 0;
+    let mut shot_started: Option<Instant> = None;
+    let mut shooter = 1;
     let mut help = true;
     let mut request_save = false;
     let mut notice = String::new();
@@ -229,6 +240,8 @@ pub fn run(
         let inside = mouse.y >= viewport.y && mouse.y < viewport.y + viewport.height;
         let click = window.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT);
         let mut changed = false;
+        let view_step = ((width as f32 - 164.) / 8.).min(116.);
+        let fire_button = Rectangle::new(width as f32 - 218., 112., 198., 32.);
         let quality_button = Rectangle::new(width as f32 - 254., 15., 234., 29.);
         if window.is_key_pressed(KEY_Q)
             || (click && quality_button.check_collision_point_rec(mouse))
@@ -273,6 +286,8 @@ pub fn run(
                 audio.event(crate::audio::Event::FinishIntro);
             }
             camera = Camera::default();
+            selected_view = 0;
+            shot_started = None;
             orbit = false;
             generation += 1;
             cancel.store(generation, Ordering::Relaxed);
@@ -292,12 +307,14 @@ pub fn run(
             orbit = false;
         }
         let keys = [
-            KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX, KEY_SEVEN,
+            KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX, KEY_SEVEN, KEY_EIGHT,
         ];
         for (i, key) in keys.iter().enumerate() {
-            let button = Rectangle::new(20. + i as f32 * 116., 59., 108., 28.);
+            let button = Rectangle::new(20. + i as f32 * view_step, 59., view_step - 6., 28.);
             if window.is_key_pressed(*key) || (click && button.check_collision_point_rec(mouse)) {
                 audio.event(crate::audio::Event::View(i));
+                selected_view = i;
+                shot_started = None;
                 camera = preset(i);
                 orbit = false;
                 changed = true;
@@ -306,7 +323,32 @@ pub fn run(
         if window.is_key_pressed(KEY_R) {
             audio.event(crate::audio::Event::View(0));
             camera = Camera::default();
+            selected_view = 0;
+            shot_started = None;
             orbit = false;
+            changed = true;
+        }
+        if selected_view == 7
+            && (window.is_key_pressed(KEY_PERIOD)
+                || window.is_key_pressed(KEY_KP_DECIMAL)
+                || (click && fire_button.check_collision_point_rec(mouse)))
+        {
+            audio.event(crate::audio::Event::Fire);
+            shooter = (shooter + 1) % 2;
+            settings.shot.soldier = shooter;
+            let origin = crate::scene::rebel_muzzle(shooter);
+            settings.shot.range = scene
+                .hit(crate::math::Ray::new(origin, V::new(1., 0., 0.)), 6.)
+                .map_or(6., |h| h.t);
+            shot_started = Some(Instant::now());
+        }
+        let previous_shot_age = settings.shot.age;
+        settings.shot.age = shot_started.map_or(-1., |t| t.elapsed().as_secs_f32());
+        if settings.shot.age >= crate::blaster::DURATION {
+            shot_started = None;
+            settings.shot.age = -1.;
+        }
+        if settings.shot.active() || previous_shot_age >= 0. {
             changed = true;
         }
         for (key, flag) in [
@@ -319,7 +361,10 @@ pub fn run(
                 changed = true;
             }
         }
-        if inside && window.is_mouse_button_down(MouseButton::MOUSE_BUTTON_LEFT) {
+        if inside
+            && !(selected_view == 7 && fire_button.check_collision_point_rec(mouse))
+            && window.is_mouse_button_down(MouseButton::MOUSE_BUTTON_LEFT)
+        {
             let delta = window.get_mouse_delta();
             if delta.x != 0. || delta.y != 0. {
                 camera.yaw += delta.x * 0.25;
@@ -584,12 +629,18 @@ pub fn run(
         );
         for (i, label) in VIEWS.iter().enumerate() {
             draw.draw_rectangle_rounded(
-                Rectangle::new(20. + i as f32 * 116., 59., 108., 28.),
+                Rectangle::new(20. + i as f32 * view_step, 59., view_step - 6., 28.),
                 0.2,
                 4,
                 Color::new(32, 44, 57, 255),
             );
-            draw.draw_text(label, 28 + i as i32 * 116, 65, 16, muted);
+            draw.draw_text(
+                label,
+                25 + (i as f32 * view_step) as i32,
+                65,
+                if view_step < 110. { 14 } else { 16 },
+                muted,
+            );
         }
         for (button, label) in [(zoom_in_button, "+"), (zoom_out_button, "-")] {
             draw.draw_rectangle_rounded(button, 0.2, 4, Color::new(32, 44, 57, 255));
@@ -659,6 +710,16 @@ pub fn run(
                 148,
                 17,
                 muted,
+            );
+        }
+        if selected_view == 7 {
+            draw.draw_rectangle_rounded(fire_button, 0.2, 4, Color::new(80, 35, 26, 235));
+            draw.draw_text(
+                "[ . ]  Disparar",
+                fire_button.x as i32 + 20,
+                fire_button.y as i32 + 8,
+                18,
+                accent,
             );
         }
         let fade = (1. - fade_in.elapsed().as_secs_f32()).max(0.);

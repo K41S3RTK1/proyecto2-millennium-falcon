@@ -192,6 +192,15 @@ impl Renderer {
             let loc = self.shader.get_shader_location(name);
             self.shader.set_shader_value(loc, value);
         }
+        let (a, b, m, flash) = cfg.shot.segments();
+        for (name, v) in [("boltA", a), ("boltB", b), ("muzzle", m)] {
+            let loc = self.shader.get_shader_location(name);
+            self.shader.set_shader_value(loc, vector(v));
+        }
+        for (name, v) in [("shotAge", cfg.shot.age), ("muzzleFlash", flash)] {
+            let loc = self.shader.get_shader_location(name);
+            self.shader.set_shader_value(loc, v);
+        }
         let loc = self.shader.get_shader_location("resolution");
         self.shader
             .set_shader_value(loc, Vector2::new(cfg.width as f32, cfg.height as f32));
@@ -253,7 +262,7 @@ pub fn check(
     crate::png::save(output, cfg.width, cfg.height, &pixels)?;
     println!("GPU: imagen guardada en {output}");
     if benchmark {
-        for index in [0, 1, 2, 3, 4, 5, 6] {
+        for index in [0, 1, 2, 3, 4, 5, 6, 7] {
             let mut cam = crate::viewer::preset(index);
             let mut times = Vec::new();
             for n in 0..13 {
@@ -284,7 +293,7 @@ pub fn check(
 }
 
 /// Comparación reproducible de ambos motores con la misma escena y cámara.
-/// Incluye las siete vistas y cada interruptor óptico; requiere un contexto GPU.
+/// Incluye las ocho vistas y cada interruptor óptico; requiere un contexto GPU.
 pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
     let (mut window, thread) = raylib::init()
         .size(640, 400)
@@ -293,8 +302,8 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
         .build();
     let mut renderer = Renderer::new(&mut window, &thread, scene)?;
     let mut failed = false;
-    for index in 0..7 {
-        for variant in 0..6 {
+    for index in 0..8 {
+        for variant in 0..8 {
             let cfg = Settings {
                 width: 400,
                 height: 240,
@@ -303,6 +312,15 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
                 refractions: variant != 3,
                 skybox: variant != 4,
                 space: variant == 5,
+                shot: crate::blaster::Shot {
+                    age: if variant >= 6 {
+                        if variant == 6 { 0.03 } else { 0.19 }
+                    } else {
+                        -1.
+                    },
+                    soldier: variant % 2,
+                    ..crate::blaster::Shot::default()
+                },
             };
             let camera = crate::viewer::preset(index);
             renderer.render(&mut window, &thread, camera, cfg)?;
@@ -347,7 +365,7 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
     if failed {
         Err("La comparación CPU/GPU excedió la tolerancia visual".into())
     } else {
-        println!("Validación CPU/GPU: 42 comparaciones aprobadas");
+        println!("Validación CPU/GPU: 64 comparaciones aprobadas");
         Ok(())
     }
 }

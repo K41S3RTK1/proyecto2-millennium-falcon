@@ -10,6 +10,8 @@ uniform int quality, reflections, refractions, skyEnabled, spaceMode;
 uniform vec2 resolution;
 uniform vec3 eye, forward, right, up, saberBottom, saberTop;
 uniform float cameraScale;
+uniform vec3 boltA, boltB, muzzle;
+uniform float shotAge, muzzleFlash;
 vec4 dataAt(int i) { return texelFetch(sceneData, ivec2(i % 1024, i / 1024), 0); }
 struct Hit { float t; int object; vec3 p; vec3 n; };
 struct Material { vec3 albedo; float spec; float shine; float trans; float refl; float ior; vec3 emission; int tex; };
@@ -129,6 +131,20 @@ vec3 saberGlow(vec3 o,vec3 d,float limit) {
     vec3 delta=o+d*along-point;float distance=dot(delta,delta);
     return vec3(1.,.003,.001)*(exp(-distance/.009)*1.8+exp(-distance/.045)*.12);
 }
+float boltSegment(vec3 o,vec3 d,float limit,vec3 a,vec3 b,float core,float halo) {
+    vec3 v=b-a,w=o-a;float dv=dot(d,v),vv=dot(v,v),dw=dot(d,w),vw=dot(v,w);
+    float t=vv-dv*dv>1e-6?clamp((vw-dv*dw)/(vv-dv*dv),0.,1.):clamp(vw/vv,0.,1.);
+    vec3 point=a+v*t;float along=dot(point-o,d);
+    if(along<0. || along>limit) return 0.;
+    vec3 delta=o+d*along-point;float dist=dot(delta,delta);
+    return exp(-dist/core)*2.+exp(-dist/halo)*.25;
+}
+vec3 blasterGlow(vec3 o,vec3 d,float limit) {
+    if(shotAge<0. || shotAge>=.68) return vec3(0);
+    float beam=boltSegment(o,d,limit,boltA,boltB,.0018,.018);
+    float flash=boltSegment(o,d,limit,muzzle,muzzle+vec3(.06,0,0),.005,.045)*muzzleFlash;
+    return vec3(1.,.028,.006)*(beam+flash)*min(1.-shotAge/.68,.8)*5.;
+}
 struct Task { vec3 o; vec3 d; vec3 throughput; float weight; int depth; };
 vec3 traceRay(vec3 origin, vec3 direction) {
     Task tasks[8]; int count=1;
@@ -137,8 +153,8 @@ vec3 traceRay(vec3 origin, vec3 direction) {
     // Un árbol binario de profundidad 6 contiene como máximo 127 tareas.
     for(int step=0;step<127 && count>0;step++) {
         Task task=tasks[--count]; Hit hit;
-        if(!intersectScene(task.o,task.d,1e30,hit)) { result+=task.throughput*(sky(task.d)+saberGlow(task.o,task.d,1e30)); continue; }
-        result+=task.throughput*saberGlow(task.o,task.d,hit.t);
+        if(!intersectScene(task.o,task.d,1e30,hit)) { result+=task.throughput*(sky(task.d)+saberGlow(task.o,task.d,1e30)+blasterGlow(task.o,task.d,1e30)); continue; }
+        result+=task.throughput*(saberGlow(task.o,task.d,hit.t)+blasterGlow(task.o,task.d,hit.t));
         int b=blockBase+hit.object*3;
         Material mat=material(int(dataAt(b).w)); vec3 tint=dataAt(b+2).xyz;
         bool front=dot(task.d,hit.n)<0.; vec3 n=front?hit.n:-hit.n;

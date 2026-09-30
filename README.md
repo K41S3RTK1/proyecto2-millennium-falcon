@@ -1,9 +1,10 @@
 # Millennium Falcon — Docking Bay 94
 
-Diorama de Star Wars construido con **5,814 bloques** y renderizado por raytracing
+Diorama de Star Wars construido con **5,902 bloques** y renderizado por raytracing
 implementado desde cero en Rust y GLSL. La nave está estacionada en un pequeño puerto
 espacial desértico, con edificios de arenisca, luces, carga, un depósito de cristal,
-un droide astromecánico junto a su estación de mantenimiento y Vader con sable rojo.
+un droide astromecánico junto a su estación de mantenimiento, Vader con sable rojo
+y dos soldados rebeldes junto a la rampa.
 
 [![Millennium Falcon en el puerto espacial](renders/falcon.png)](renders/diorama.webm)
 
@@ -49,6 +50,8 @@ respaldo. Si el shader no compila, la aplicación vuelve automáticamente a CPU.
 | Nitidez durante el movimiento | `Q` o botón superior: Nítido 1200 → Fluido → Retina |
 | Alternar raytracer CPU / GPU | `T` (misma cámara y efectos) |
 | Vader y sable | `7` o botón Vader |
+| Soldados rebeldes | `8` o botón Rebeldes |
+| Disparo manual en la vista de rebeldes | `.` / decimal numérico o botón Disparar |
 | Cambiar Tatooine / espacio | `C` |
 | Repetir introducción | `I` |
 | Saltar introducción | Enter o Espacio |
@@ -154,7 +157,7 @@ Una luz principal cálida define el volumen y una luz de relleno azul conserva
 los detalles de las caras en sombra. La exposición y la luz ambiente se ajustan
 para distinguir paneles del casco, ventiladores y pasillo lateral. La plataforma
 central tiene un tono más oscuro que la arena exterior y el motor mantiene una
-banda azul emisiva. La escena contiene 5,814 bloques y tres luces: dos generales y una roja de alcance limitado junto al sable.
+banda azul emisiva. La escena contiene 5,902 bloques y tres luces: dos generales y una roja de alcance limitado junto al sable.
 
 ## Zona de mantenimiento
 
@@ -185,6 +188,38 @@ destruida. No añade bloques a la BVH. Su iluminación de relleno es más fría.
 El cielo de Tatooine se conserva y **B** permite desactivar cualquiera de ellos.
 
 ![Diorama en el espacio](renders/espacio.png)
+
+## Prototipo de soldados rebeldes
+
+Dos soldados de bloques se ubican junto a la rampa lateral, separados del casco.
+Tienen cascos blancos con franja oscura, camisa azul grisácea, chaleco negro,
+cinturón, botas y bláster con mira. Reutilizan los materiales del diorama.
+
+**8** abre su cámara y reproduce `BLASTER FX.wav` una vez. Dentro de esta vista,
+**.** (punto), decimal numérico o el botón **Disparar** alternan el soldado que
+lanza un proyectil rojo con destello en la boca del arma y `DISPARO FX.wav`.
+No hay disparos automáticos. Una nueva pulsación reinicia el disparo y su sonido;
+se mantiene un solo proyectil activo para limitar el costo y evitar superponer audio.
+Al terminar el efecto vuelve cantina. Cambiar de cámara cancela la animación.
+
+![Soldados junto a la rampa](renders/rebeldes.png)
+![Disparo manual](renders/disparo.png)
+
+La animación dura 0.68 s. CPU y GPU calculan el mismo segmento luminoso en el
+espacio 3D, oculto por la geometría más cercana y visible en las reflexiones.
+Es un resplandor artístico, sin simulación física de plasma ni daño a objetos.
+Se actualizan unos pocos parámetros por cuadro; la geometría y la BVH permanecen
+cargadas. En GPU conserva los modos de nitidez de Q; la fluidez del respaldo CPU
+sigue dependiendo de su costo de renderizado.
+
+Medición del prototipo en Apple M1: cámara 8 a 1200×644, calidad interactiva,
+todos los efectos y un disparo activo: **24.60 ms por cuadro (40.6 FPS)** de
+media en diez cuadros tras calentamiento, incluyendo lectura de GPU. Es una
+medición de renderizado; la ventana limita la presentación a 60 FPS y puede
+variar según la carga del equipo.
+
+El estado previo está guardado en la etiqueta `respaldo-antes-rebeldes-b5e459e`.
+Los dos WAV nuevos, igual que los anteriores, son archivos locales excluidos de Git.
 
 ## Introducción
 
@@ -217,8 +252,10 @@ el audio y conserva su estado al cambiar de vista o repetir la intro.
 | `2` Motor | `MF FX.wav` una vez → cantina |
 | `6` Droide | `R2D2 FX.wav` una vez → cantina |
 | `7` Vader | `LS FX.wav` una vez → `dv theme.wav` en bucle |
-| Repetir `2`, `6` o `7` | Reinicia el efecto correspondiente |
-| Salir de Vader con `1`–`6`, `R` o `I` | Detiene su música y aplica la nueva secuencia |
+| `8` Rebeldes | `BLASTER FX.wav` una vez → cantina |
+| `.` / Disparar en cámara 8 | `DISPARO FX.wav` una vez → cantina |
+| Repetir `2`, `6`, `7` u `8` | Reinicia el efecto correspondiente |
+| Salir de Vader con otra cámara, `R` o `I` | Detiene su música y aplica la nueva secuencia |
 
 Los botones de las cámaras hacen lo mismo que sus teclas. Los archivos locales
 se colocan en `assets/audio/` con los nombres exactos de la tabla y se excluyen
@@ -230,7 +267,7 @@ presentación conserva la secuencia en silencio.
 cargo run --release --offline -- --audio-check
 ```
 
-Esta comprobación silenciada carga los siete WAV, adelanta cada stream cerca
+Esta comprobación silenciada carga los nueve WAV, adelanta cada stream cerca
 de su final y verifica las transiciones y los dos bucles. La reproducción normal
 respeta la duración completa de cada grabación.
 
@@ -373,8 +410,9 @@ la escena completa: rayos paralelos, impactos rasantes, orígenes dentro de bloq
 límites de distancia y geometría coincidente. La prueba de empaquetado verifica
 que la BVH exportada para GPU conserva todos los bloques y los impactos.
 
-`--validate-gpu` necesita un contexto gráfico y compara 42 imágenes: siete vistas,
-calidad interactiva/final, los tres efectos desactivados por separado y el cielo espacial. Informa
+`--validate-gpu` necesita un contexto gráfico y compara 64 imágenes: ocho vistas,
+calidad interactiva/final, los tres efectos desactivados por separado, el cielo espacial
+y dos instantes del disparo. Informa
 error medio por canal y proporción de píxeles con diferencia mayor que 32/255.
 La tolerancia es error medio ≤1/255 y como máximo 0.5 % de píxeles por encima de
 ese umbral, para admitir diferencias de redondeo en aristas compartidas.

@@ -4,6 +4,10 @@ use crate::{
     math::{Ray, V, noise},
     skybox::Skybox,
 };
+pub const REBEL_ORIGINS: [V; 2] = [V::new(6.5, 0., -0.9), V::new(6.5, 0., 1.15)];
+pub fn rebel_muzzle(index: usize) -> V {
+    REBEL_ORIGINS[index % 2] + V::new(1.08, 1.34, 0.08)
+}
 pub const VADER_ORIGIN: V = V::new(-3.1, 0., -7.65);
 pub const SABER_BOTTOM: V = V::new(VADER_ORIGIN.x + 0.81, 1.20, VADER_ORIGIN.z - 0.37);
 pub const SABER_TOP: V = V::new(SABER_BOTTOM.x, 2.96, SABER_BOTTOM.z);
@@ -40,6 +44,7 @@ impl Scene {
         b.falcon();
         b.maintenance();
         b.vader();
+        b.rebels();
         let bvh = Bvh::build(&b.blocks);
         Self {
             blocks: b.blocks,
@@ -238,6 +243,188 @@ impl Builder {
                 ENGINE,
                 V::new(1.4, 0.9, 0.4),
             );
+        }
+    }
+    fn rebels(&mut self) {
+        // Puesto junto a la rampa: los soldados miran hacia el exterior (+X).
+        // Coordenadas locales: frente -Z, convertidas sin rotar cajas fuera de ejes.
+        for (soldier, origin) in REBEL_ORIGINS.iter().enumerate() {
+            let mut part = |p: V, size: V, material: usize, tint: V| {
+                self.block(
+                    *origin + V::new(-p.z, p.y, p.x),
+                    V::new(size.z, size.y, size.x),
+                    material,
+                    tint,
+                );
+            };
+            let shirt = V::new(0.43, 0.62, 0.77);
+            let pants = V::new(0.65, 0.62, 0.59);
+            let skin = if soldier == 0 {
+                V::new(1.2, 0.73, 0.46)
+            } else {
+                V::new(0.80, 0.43, 0.25)
+            };
+            let helmet = V::new(1.25, 1.27, 1.20);
+            for side in [-1., 1.] {
+                part(
+                    V::new(side * 0.20, 0.15, -0.07),
+                    V::new(0.27, 0.40, 0.40),
+                    CLOTH,
+                    V::splat(1.4),
+                );
+                part(
+                    V::new(side * 0.20, 0.57, 0.02),
+                    V::new(0.25, 0.48, 0.28),
+                    HULL,
+                    pants,
+                );
+                // Mangas y antebrazos sujetan el arma con las dos manos.
+                part(
+                    V::new(side * 0.40, 1.29, -0.01),
+                    V::new(0.24, 0.38, 0.30),
+                    HULL,
+                    shirt,
+                );
+                part(
+                    V::new(side * 0.31, 1.19, -0.27),
+                    V::new(0.25, 0.21, 0.45),
+                    HULL,
+                    shirt,
+                );
+                part(
+                    V::new(side * 0.19, 1.24, -0.49),
+                    V::new(0.19, 0.17, 0.19),
+                    HULL,
+                    skin,
+                );
+            }
+            part(V::new(0., 1.10, 0.), V::new(0.62, 0.63, 0.34), HULL, shirt);
+            // Chaleco negro abierto, costuras, bolsillos y cinturón.
+            for side in [-1., 1.] {
+                part(
+                    V::new(side * 0.22, 1.13, -0.20),
+                    V::new(0.19, 0.61, 0.08),
+                    CLOTH,
+                    V::splat(1.9),
+                );
+                part(
+                    V::new(side * 0.22, 0.96, -0.255),
+                    V::new(0.17, 0.16, 0.07),
+                    CLOTH,
+                    V::splat(2.7),
+                );
+                part(
+                    V::new(side * 0.30, 1.13, 0.06),
+                    V::new(0.09, 0.58, 0.35),
+                    CLOTH,
+                    V::splat(1.6),
+                );
+            }
+            part(
+                V::new(0., 1.12, 0.20),
+                V::new(0.60, 0.60, 0.07),
+                CLOTH,
+                V::splat(1.7),
+            );
+            part(
+                V::new(0., 0.80, 0.),
+                V::new(0.65, 0.10, 0.39),
+                CLOTH,
+                V::splat(2.),
+            );
+            part(
+                V::new(0., 0.80, -0.215),
+                V::new(0.15, 0.10, 0.04),
+                HULL,
+                V::splat(0.7),
+            );
+            part(V::new(0., 1.49, 0.), V::new(0.21, 0.17, 0.23), HULL, skin);
+            part(
+                V::new(0., 1.72, -0.04),
+                V::new(0.40, 0.41, 0.36),
+                HULL,
+                skin,
+            );
+            part(
+                V::new(0., 1.69, -0.25),
+                V::new(0.07, 0.12, 0.07),
+                HULL,
+                skin,
+            );
+            for side in [-1., 1.] {
+                part(
+                    V::new(side * 0.11, 1.78, -0.228),
+                    V::new(0.085, 0.04, 0.025),
+                    CLOTH,
+                    V::splat(0.7),
+                );
+                part(
+                    V::new(side * 0.27, 1.73, 0.04),
+                    V::new(0.12, 0.30, 0.40),
+                    HULL,
+                    helmet,
+                );
+                part(
+                    V::new(side * 0.23, 1.57, -0.05),
+                    V::new(0.04, 0.19, 0.08),
+                    CLOTH,
+                    V::splat(1.5),
+                );
+            }
+            part(
+                V::new(0., 1.54, -0.22),
+                V::new(0.43, 0.07, 0.08),
+                HULL,
+                helmet,
+            );
+            for (y, w, d) in [(1.92, 0.66, 0.60), (2.03, 0.56, 0.52), (2.12, 0.40, 0.38)] {
+                part(V::new(0., y, 0.01), V::new(w, 0.12, d), HULL, helmet);
+                part(
+                    V::new(0., y + 0.065, 0.01),
+                    V::new(w * 0.42, 0.025, d),
+                    CLOTH,
+                    V::splat(1.3),
+                );
+            }
+            part(
+                V::new(0., 1.88, -0.27),
+                V::new(0.62, 0.09, 0.10),
+                CLOTH,
+                V::splat(1.4),
+            );
+            // Bláster, cañón, mira y empuñadura; boca coincide con rebel_muzzle.
+            part(
+                V::new(0.08, 1.34, -0.58),
+                V::new(0.17, 0.16, 0.44),
+                DARK,
+                V::splat(0.7),
+            );
+            part(
+                V::new(0.08, 1.34, -0.90),
+                V::new(0.10, 0.10, 0.34),
+                DARK,
+                V::splat(0.65),
+            );
+            part(
+                V::new(0.08, 1.21, -0.48),
+                V::new(0.10, 0.24, 0.13),
+                CLOTH,
+                V::splat(1.4),
+            );
+            part(
+                V::new(0.08, 1.46, -0.62),
+                V::new(0.075, 0.07, 0.24),
+                DARK,
+                V::splat(0.65),
+            );
+            for z in [-0.83, -0.94, -1.04] {
+                part(
+                    V::new(0.08, 1.34, z),
+                    V::new(0.13, 0.13, 0.025),
+                    HULL,
+                    V::splat(0.38),
+                );
+            }
         }
     }
     fn vader(&mut self) {

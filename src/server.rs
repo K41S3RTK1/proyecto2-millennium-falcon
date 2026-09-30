@@ -95,6 +95,7 @@ fn request(s: &mut TcpStream, scene: &Scene) -> io::Result<()> {
                 refractions: num(query, "refractions", 1., 0., 1.) > 0.,
                 space: num(query, "space", 0., 0., 1.) > 0.,
                 skybox: num(query, "skybox", 1., 0., 1.) > 0.,
+                ..Settings::default()
             };
             let frame = render::render(scene, camera, cfg);
             let data = png::encode(frame.width, frame.height, &frame.pixels);

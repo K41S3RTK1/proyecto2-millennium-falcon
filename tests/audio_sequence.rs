@@ -94,3 +94,27 @@ fn mute_survives_intro_and_camera_changes_without_changing_sequence() {
     assert!(!s.muted);
     assert_eq!(s.track, Some(Track::Vader));
 }
+
+#[test]
+fn rebel_entry_and_manual_shot_are_distinct_and_limited_to_view_eight() {
+    let mut s = Sequence::default();
+    s.event(Event::FinishIntro);
+    s.event(Event::Fire);
+    assert_eq!(s.track, Some(Track::Cantina));
+    s.event(Event::View(7));
+    assert_eq!(s.track, Some(Track::Blaster));
+    s.event(Event::Fire);
+    assert_eq!(s.track, Some(Track::Shot));
+    s.event(Event::Finished(Track::Blaster));
+    assert_eq!(s.track, Some(Track::Shot));
+    s.event(Event::Finished(Track::Shot));
+    assert_eq!(s.track, Some(Track::Cantina));
+    s.event(Event::Fire);
+    s.event(Event::View(6));
+    s.event(Event::Finished(Track::Shot));
+    s.event(Event::Fire);
+    assert_eq!(s.track, Some(Track::Saber));
+    s.event(Event::BeginIntro);
+    s.event(Event::Fire);
+    assert_eq!(s.track, None);
+}
