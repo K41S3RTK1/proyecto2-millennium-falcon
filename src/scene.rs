@@ -16,6 +16,7 @@ impl Scene {
         let mut b = Builder { blocks: Vec::new() };
         b.port();
         b.falcon();
+        b.maintenance();
         let bvh = Bvh::build(&b.blocks);
         Self {
             blocks: b.blocks,
@@ -197,6 +198,153 @@ impl Builder {
                 ENGINE,
                 V::new(1.4, 0.9, 0.4),
             );
+        }
+    }
+    fn maintenance(&mut self) {
+        // Astromecánico blanco y azul, construido con cubos sobre la plataforma.
+        let origin = V::new(-4.65, 0., -5.45);
+        let blue = V::new(0.08, 0.22, 0.90);
+        let white = V::splat(1.);
+        let step = 0.12;
+        for y in 0..5 {
+            for x in -2_i32..=2 {
+                for z in -2_i32..=2 {
+                    if x * x + z * z > 5 || (y > 0 && y < 4 && x.abs() < 2 && z.abs() < 2) {
+                        continue;
+                    }
+                    let panel = z == -2 && ((y == 1 && x.abs() <= 1) || (y == 3 && x == 0));
+                    self.block(
+                        origin + V::new(x as f32 * step, 0.44 + y as f32 * step, z as f32 * step),
+                        V::splat(step),
+                        HULL,
+                        if panel { blue } else { white },
+                    );
+                }
+            }
+        }
+        for (y, radius_squared) in [(0, 5), (1, 2), (2, 1)] {
+            for x in -2_i32..=2 {
+                for z in -2_i32..=2 {
+                    if x * x + z * z > radius_squared {
+                        continue;
+                    }
+                    self.block(
+                        origin + V::new(x as f32 * step, 1.04 + y as f32 * step, z as f32 * step),
+                        V::splat(step),
+                        HULL,
+                        if y == 0 || x == 0 {
+                            blue
+                        } else {
+                            V::splat(0.75)
+                        },
+                    );
+                }
+            }
+        }
+        // Patas laterales y tercer apoyo: silueta reconocible sin piezas curvas.
+        for side in [-1., 1.] {
+            self.block(
+                origin + V::new(side * 0.37, 0.80, 0.),
+                V::new(0.20, 0.24, 0.24),
+                HULL,
+                white,
+            );
+            self.block(
+                origin + V::new(side * 0.46, 0.44, 0.),
+                V::new(0.16, 0.56, 0.18),
+                HULL,
+                white,
+            );
+            self.block(
+                origin + V::new(side * 0.46, 0.40, -0.105),
+                V::new(0.07, 0.30, 0.035),
+                HULL,
+                blue,
+            );
+            self.block(
+                origin + V::new(side * 0.46, 0.10, -0.08),
+                V::new(0.30, 0.28, 0.46),
+                HULL,
+                white,
+            );
+            self.block(
+                origin + V::new(side * 0.46, -0.025, -0.08),
+                V::new(0.31, 0.07, 0.47),
+                DARK,
+                white,
+            );
+        }
+        self.block(
+            origin + V::new(0., 0.23, -0.12),
+            V::new(0.12, 0.30, 0.14),
+            DARK,
+            white,
+        );
+        self.block(
+            origin + V::new(0., 0.055, -0.20),
+            V::new(0.24, 0.22, 0.38),
+            HULL,
+            white,
+        );
+        self.block(
+            origin + V::new(0., 1.08, -0.31),
+            V::new(0.16, 0.11, 0.055),
+            DARK,
+            white,
+        );
+        self.block(
+            origin + V::new(0.18, 1.04, -0.30),
+            V::new(0.055, 0.055, 0.055),
+            ENGINE,
+            V::splat(0.7),
+        );
+        for x in [-0.12, 0.12] {
+            self.block(
+                origin + V::new(x, 0.44, -0.315),
+                V::new(0.055, 0.14, 0.04),
+                DARK,
+                white,
+            );
+        }
+        // Consola de mantenimiento y cable bajo, con los mismos materiales de la escena.
+        let station = V::new(-6.15, 0., -4.9);
+        self.block(
+            station + V::new(0., 0.08, 0.),
+            V::new(0.64, 0.28, 0.62),
+            DARK,
+            white,
+        );
+        self.block(
+            station + V::new(0., 0.52, 0.),
+            V::new(0.44, 0.66, 0.36),
+            HULL,
+            V::splat(0.55),
+        );
+        self.block(
+            station + V::new(0., 0.93, 0.),
+            V::new(0.72, 0.30, 0.22),
+            DARK,
+            white,
+        );
+        self.block(
+            station + V::new(0., 0.95, -0.122),
+            V::new(0.51, 0.16, 0.035),
+            ENGINE,
+            V::splat(0.6),
+        );
+        for x in [-0.18, 0., 0.18] {
+            self.block(
+                station + V::new(x, 0.78, -0.13),
+                V::new(0.07, 0.07, 0.06),
+                HULL,
+                blue,
+            );
+        }
+        for i in 0..9 {
+            self.cube(V::new(-5.95 + i as f32 * 0.10, -0.015, -5.10), 0.09, DARK);
+        }
+        for i in 0..4 {
+            self.cube(V::new(-5.15, -0.015, -5.19 - i as f32 * 0.09), 0.09, DARK);
         }
     }
     fn falcon(&mut self) {

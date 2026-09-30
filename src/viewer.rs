@@ -17,12 +17,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-const VIEWS: [&str; 5] = [
+const VIEWS: [&str; 6] = [
     "1  Principal",
     "2  Motor",
     "3  Cabina",
     "4  Refraccion",
-    "5  Desde arriba",
+    "5  Superior",
+    "6  Droide",
 ];
 fn preset(index: usize) -> Camera {
     match index {
@@ -50,6 +51,13 @@ fn preset(index: usize) -> Camera {
             yaw: 38.,
             pitch: 72.,
             distance: 24.,
+            ..Camera::default()
+        },
+        5 => Camera {
+            yaw: 28.,
+            pitch: 17.,
+            distance: 4.6,
+            target: V::new(-5.1, 0.70, -5.3),
             ..Camera::default()
         },
         _ => Camera::default(),
@@ -214,9 +222,9 @@ pub fn run(
             request_save = true;
             orbit = false;
         }
-        let keys = [KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE];
+        let keys = [KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR, KEY_FIVE, KEY_SIX];
         for (i, key) in keys.iter().enumerate() {
-            let button = Rectangle::new(20. + i as f32 * 150., 59., 142., 28.);
+            let button = Rectangle::new(20. + i as f32 * 132., 59., 124., 28.);
             if window.is_key_pressed(*key) || (click && button.check_collision_point_rec(mouse)) {
                 camera = preset(i);
                 orbit = false;
@@ -409,12 +417,12 @@ pub fn run(
         draw.draw_text("DOCKING BAY 94  /  TATOOINE", 400, 24, 16, accent);
         for (i, label) in VIEWS.iter().enumerate() {
             draw.draw_rectangle_rounded(
-                Rectangle::new(20. + i as f32 * 150., 59., 142., 28.),
+                Rectangle::new(20. + i as f32 * 132., 59., 124., 28.),
                 0.2,
                 4,
                 Color::new(32, 44, 57, 255),
             );
-            draw.draw_text(label, 30 + i as i32 * 150, 65, 16, muted);
+            draw.draw_text(label, 28 + i as i32 * 132, 65, 16, muted);
         }
         for (button, label) in [(zoom_in_button, "+"), (zoom_out_button, "-")] {
             draw.draw_rectangle_rounded(button, 0.2, 4, Color::new(32, 44, 57, 255));

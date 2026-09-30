@@ -1,8 +1,9 @@
 # Millennium Falcon — Docking Bay 94
 
-Diorama de Star Wars construido con **5,447 bloques** y renderizado por raytracing
+Diorama de Star Wars construido con **5,596 bloques** y renderizado por raytracing
 implementado desde cero en Rust. La nave está estacionada en un pequeño puerto
-espacial desértico, con edificios de arenisca, luces, carga y un depósito de cristal.
+espacial desértico, con edificios de arenisca, luces, carga, un depósito de cristal
+y un droide astromecánico junto a su estación de mantenimiento.
 
 [![Millennium Falcon en el puerto espacial](renders/falcon.png)](renders/diorama.webm)
 
@@ -36,7 +37,7 @@ El lanzador genera una app local en `target/Millennium Falcon.app`.
 | Rotar alrededor del diorama | Arrastrar sobre la escena o usar las flechas |
 | Acercar y alejar | Rueda/scroll del trackpad, caracteres `+` y `−` (también `=`), teclado numérico o botones `+` / `−` |
 | Vista inicial | `R` o `1` |
-| Motor / Cabina / Refracción / Desde arriba | `2` / `3` / `4` / `5`, o botones superiores |
+| Motor / Cabina / Refracción / Superior / Droide | `2` / `3` / `4` / `5` / `6`, o botones superiores |
 | Recorrido automático / detener | Espacio |
 | Activar/desactivar reflexión | `F` |
 | Activar/desactivar refracción | `G` |
@@ -98,7 +99,7 @@ cargo run --release --offline -- --benchmark
 
 | Apartado | Implementación y evidencia |
 |---|---|
-| Complejidad (30, subjetivo) | Casco circular escalonado, dos mandíbulas, pasillo y cabina lateral, antena, torreta con cuatro cañones, seis ventiladores, soportes de aterrizaje, rampa, edificios y carga. |
+| Complejidad (30, subjetivo) | Casco circular escalonado, dos mandíbulas, pasillo y cabina lateral, antena, torreta con cuatro cañones, seis ventiladores, soportes de aterrizaje, rampa, edificios, carga y droide con estación de mantenimiento. |
 | Atractivo visual (20, subjetivo) | Composición sobre base finita, materiales con textura, luz cálida y de relleno, sombras, oclusión local y suavizado de bordes. |
 | Rotación y zoom (20) | Cámara orbital interactiva alrededor de un objetivo, control de azimut, elevación y distancia. Se recalculan los rayos al moverla. |
 | Materiales (hasta 25) | Cinco materiales con su propia textura y parámetros de albedo, especular, transparencia y reflectividad. Tabla siguiente. |
@@ -113,7 +114,18 @@ Una luz principal cálida define el volumen y una luz de relleno azul conserva
 los detalles de las caras en sombra. La exposición y la luz ambiente se ajustan
 para distinguir paneles del casco, ventiladores y pasillo lateral. La plataforma
 central tiene un tono más oscuro que la arena exterior y el motor mantiene una
-banda azul emisiva. La escena conserva 5,447 bloques y dos luces.
+banda azul emisiva. La escena contiene 5,596 bloques y dos luces.
+
+## Zona de mantenimiento
+
+El astromecánico tiene cuerpo blanco con paneles azules, cúpula escalonada,
+sensor frontal, patas laterales y tercer apoyo. Una consola con pantalla luminosa
+y cable sobre la plataforma completa el área de servicio. Las piezas usan los
+materiales existentes; no se añaden luces ni cálculos ópticos nuevos.
+
+La tecla **6** abre una vista cercana. Desde ahí también se puede rotar y usar zoom.
+
+![Droide y estación de mantenimiento](renders/droide.png)
 
 ## Cinco materiales
 

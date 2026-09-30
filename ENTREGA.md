@@ -10,8 +10,9 @@
 3. Mostrar `1` Principal; luego `2` Motor para enseñar la banda azul y ventiladores.
 4. Mostrar `3` Cabina y `4` Refracción. Usar `G` para comparar el vidrio.
 5. Usar `F` y `B` para comparar reflexión y skybox; dejarlos activados al terminar.
-6. Volver a `1` y pulsar Espacio para el recorrido automático. Espacio lo detiene.
-7. Tener el video `renders/diorama.webm` disponible como respaldo. Para grabar otro,
+6. Mostrar `6` Droide y la estación de mantenimiento.
+7. Volver a `1` y pulsar Espacio para el recorrido automático. Espacio lo detiene.
+8. Tener el video `renders/diorama.webm` disponible como respaldo. Para grabar otro,
    ejecutar `cargo run --release --offline -- --web` y usar el visor web opcional.
 
 El indicador de imágenes/s mide cuadros nuevos mostrados; no confundirlo con
@@ -32,7 +33,7 @@ Los archivos de compilación de `target` se excluyen mediante `.gitignore`.
 
 ## Versión inicial CPU
 
-Incluye el Halcón Milenario, cinco materiales, reflexión, refracción, skybox,
+Incluye el Halcón Milenario, un droide con estación de mantenimiento, cinco materiales, reflexión, refracción, skybox,
 cámara orbital y ventana raylib. El trazado se ejecuta en CPU; raylib recibe
 los píxeles y presenta la imagen. Los modos de nitidez permiten comparar calidad
 y rendimiento en Apple M1.
