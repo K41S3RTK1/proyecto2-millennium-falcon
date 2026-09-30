@@ -6,12 +6,33 @@ espacial desértico, con edificios de arenisca, luces, carga, un depósito de cr
 un droide astromecánico junto a su estación de mantenimiento, Vader con sable rojo
 y dos soldados rebeldes junto a la rampa.
 
-[![Millennium Falcon en el puerto espacial](renders/falcon.png)](renders/diorama.webm)
+[![Millennium Falcon en el puerto espacial](renders/falcon.png)](renders/diorama-final.mp4)
 
-**[▶ Ver el video del diorama](renders/diorama.webm)** — Recorrido de la versión inicial:
-42 segundos, giro de 360° y acercamiento a la cabina. Las capturas muestran la
-versión actual; el video todavía no incluye Vader, el cielo espacial ni la intro. El video se genera desde el propio visor, sin editores
-ni paquetes adicionales. El archivo está incluido en `renders/diorama.webm`.
+**[▶ Ver el video final con audio](renders/diorama-final.mp4)** — 3 min 29 s,
+1200×800, 30 cuadros/s, MP4 H.264 y audio AAC estéreo. Incluye la introducción
+completa, giro de 360° y zoom, materiales, comparaciones de reflexión y refracción,
+el droide, Vader, los rebeldes con disparos y el skybox espacial.
+
+El video se exportó cuadro a cuadro con el renderer del proyecto y se codificó
+con FFmpeg, sincronizando los WAV locales con las escenas. Es un recorrido
+renderizado: sus 30 cuadros/s no representan el rendimiento en vivo. FFmpeg es
+una herramienta de producción del video, no una dependencia de la aplicación.
+Si GitHub no muestra el reproductor, descargar el MP4 con **View raw / Download**.
+
+| Tiempo | Demostración |
+|---|---|
+| 0:00 | Introducción completa con música |
+| 1:34 | Rotación de 360° y acercamiento/alejamiento |
+| 1:54 | Motor y materiales |
+| 2:03 | Cabina: reflexión activada/desactivada |
+| 2:17 | Depósito: refracción activada/desactivada |
+| 2:30 | Droide y estación de mantenimiento |
+| 2:36 | Vader, sable y música de su vista |
+| 2:55 | Rebeldes y tres disparos alternados |
+| 3:07 | Entorno espacial y comparación del skybox |
+
+El [recorrido inicial sin las últimas mejoras](renders/diorama.webm) se conserva
+como referencia. Para la presentación en vivo, consultar [ENTREGA.md](ENTREGA.md).
 
 ## Ejecutar
 
@@ -142,14 +163,19 @@ cargo run --release --offline -- --benchmark
 
 | Apartado | Implementación y evidencia |
 |---|---|
-| Complejidad (30, subjetivo) | Casco circular escalonado, dos mandíbulas, pasillo y cabina lateral, antena, torreta con cuatro cañones, seis ventiladores, soportes de aterrizaje, rampa, edificios, carga, droide con estación de mantenimiento y Vader con capa y sable. |
+| Complejidad (30, subjetivo) | 5,902 bloques: casco circular escalonado, mandíbulas, cabina lateral, antena, torreta, ventiladores, rampa, puerto, droide, Vader y dos soldados rebeldes con disparos. |
 | Atractivo visual (20, subjetivo) | Composición sobre base finita, materiales con textura, luz cálida y de relleno, sombras, oclusión local y suavizado de bordes. |
 | Rotación y zoom (20) | Cámara orbital interactiva alrededor de un objetivo, control de azimut, elevación y distancia. Se recalculan los rayos al moverla. |
 | Materiales (hasta 25) | Cinco materiales base más tres superficies para Vader; cada uno con textura y parámetros de albedo, especular, transparencia y reflectividad. Tabla siguiente. |
 | Refracción (10) | Ley de Snell, índice 1.5 para vidrio, interfaces de entrada y salida, reflexión interna total. Vidrio en cabina y depósito; su interior permite observar el desplazamiento óptico. |
 | Reflexión (5) | Rayos secundarios reflejados en metal pulido y vidrio, con mezcla de Fresnel para el material transparente. |
 | Skybox (20) | Cubemap de seis caras, muestreo por dirección y filtrado bilineal. Entornos intercambiables: desierto con dos soles y espacio con estrellas y estación parcialmente destruida, visibles también en reflejos. |
-| Entrega | Código fuente, capturas y video incluidos en el repositorio. |
+| Entrega | Código fuente, capturas actuales y [video final con audio](renders/diorama-final.mp4) incluidos en el repositorio. |
+
+La tabla documenta la implementación; las puntuaciones subjetivas corresponden
+al evaluador. Los cinco materiales base son casco, metal oscuro, vidrio, arenisca
+y motor. Cada uno tiene una textura procedural distinta y sus propios parámetros;
+los tres materiales adicionales no aumentan el máximo de 25 puntos de ese apartado.
 
 ## Iluminación y presentación
 
@@ -189,7 +215,7 @@ El cielo de Tatooine se conserva y **B** permite desactivar cualquiera de ellos.
 
 ![Diorama en el espacio](renders/espacio.png)
 
-## Prototipo de soldados rebeldes
+## Soldados rebeldes y disparos
 
 Dos soldados de bloques se ubican junto a la rampa lateral, separados del casco.
 Tienen cascos blancos con franja oscura, camisa azul grisácea, chaleco negro,
@@ -212,7 +238,7 @@ Se actualizan unos pocos parámetros por cuadro; la geometría y la BVH permanec
 cargadas. En GPU conserva los modos de nitidez de Q; la fluidez del respaldo CPU
 sigue dependiendo de su costo de renderizado.
 
-Medición del prototipo en Apple M1: cámara 8 a 1200×644, calidad interactiva,
+Medición de la versión con rebeldes en Apple M1: cámara 8 a 1200×644, calidad interactiva,
 todos los efectos y un disparo activo: **24.60 ms por cuadro (40.6 FPS)** de
 media en diez cuadros tras calentamiento, incluyendo lectura de GPU. Es una
 medición de renderizado; la ventana limita la presentación a 60 FPS y puede
@@ -311,6 +337,8 @@ La única dependencia directa es **raylib 6**, utilizada para ventana, entrada, 
 texto, ejecución del shader propio y presentación de la imagen. Sus dependencias transitivas quedan registradas
 en `Cargo.lock`.
 
+El uso de raylib en esta implementación fue revisado y autorizado por el docente.
+
 **Rust estándar** construye geometría, materiales, cámara, cubemap y BVH; también
 implementa el raytracer CPU paralelo y el codificador PNG. **GLSL** implementa el
 raytracer GPU con los mismos parámetros. Reflexión y refracción usan una pila
@@ -401,6 +429,10 @@ cargo clippy --offline --all-targets -- -D warnings
 cargo tree --offline
 cargo run --release --offline -- --validate-gpu
 ```
+
+Verificación de entrega del 30 de septiembre de 2026: **23 pruebas aprobadas**,
+formato y Clippy sin advertencias, **64 comparaciones CPU/GPU aprobadas** y
+comprobación de los nueve audios, sus transiciones y bucles sin superposición.
 
 Las pruebas cubren Snell, reflexión interna total, entrada/salida del vidrio,
 rayos dentro y fuera de cajas, equivalencia BVH/búsqueda completa, cámara orbital,
