@@ -6,8 +6,9 @@ espacial desértico, con edificios de arenisca, luces, carga y un depósito de c
 
 [![Millennium Falcon en el puerto espacial](renders/falcon.png)](renders/diorama.webm)
 
-**[▶ Ver el video del diorama](renders/diorama.webm)** — 42 segundos, recorrido de 360° y
-acercamiento a la cabina. El video se genera desde el propio visor, sin editores
+**[▶ Ver el video del diorama](renders/diorama.webm)** — Recorrido de la versión inicial:
+42 segundos, giro de 360° y acercamiento a la cabina. Las capturas muestran la
+iluminación actualizada. El video se genera desde el propio visor, sin editores
 ni paquetes adicionales. El archivo está incluido en `renders/diorama.webm`.
 
 ## Ejecutar
@@ -40,7 +41,7 @@ El lanzador genera una app local en `target/Millennium Falcon.app`.
 | Activar/desactivar reflexión | `F` |
 | Activar/desactivar refracción | `G` |
 | Activar/desactivar skybox | `B` |
-| Nitidez durante el movimiento | `Q` o botón superior: Retina → Nítido 1200 → Fluido |
+| Nitidez durante el movimiento | `Q` o botón superior: Nítido 1200 → Fluido → Retina |
 | Mostrar/ocultar ayuda | `H` |
 | Guardar imagen de calidad | `S` → `renders/captura.png`, 2560 px de ancho (mantener cámara quieta) |
 | Salir | Escape o cerrar la ventana |
@@ -51,9 +52,9 @@ El lanzador genera una app local en `target/Millennium Falcon.app`.
   camino de presentación nativo. Solo dibuja una textura 2D, no la escena 3D.
 - El trazado corre en un hilo coordinador y varios trabajadores, reservando un
   núcleo lógico para la interfaz. La ventana procesa controles a 60 FPS objetivo.
-- Inicia en **Retina constante**: mantiene el ancho físico (1600–2560 px) al mover
-  la cámara. `Q` cambia a **Nítido 1200** (ancho fijo) y después a **Fluido**
-  (192–640 px adaptativos, objetivo 30 imágenes calculadas/s).
+- Inicia en **Nítido 1200**: mantiene 1200 píxeles de ancho al mover la cámara.
+  `Q` alterna a **Fluido** (192–640 px adaptativos, objetivo 30 imágenes
+  calculadas/s), después a **Retina constante** (1600–2560 px) y regresa a Nítido.
 - Los tres modos conservan reflejos, refracción, sombras y cielo. En movimiento
   usan una muestra por píxel y menor profundidad recursiva; al detenerse recuperan
   oclusión local y cuatro muestras por píxel. Resolución constante no significa
@@ -106,6 +107,14 @@ cargo run --release --offline -- --benchmark
 | Skybox (20) | Cubemap de seis caras, muestreo por dirección y filtrado bilineal. Entorno desértico con dos soles, visible también en reflejos. |
 | Entrega | Código fuente, capturas y video incluidos en el repositorio. |
 
+## Iluminación y presentación
+
+Una luz principal cálida define el volumen y una luz de relleno azul conserva
+los detalles de las caras en sombra. La exposición y la luz ambiente se ajustan
+para distinguir paneles del casco, ventiladores y pasillo lateral. La plataforma
+central tiene un tono más oscuro que la arena exterior y el motor mantiene una
+banda azul emisiva. La escena conserva 5,447 bloques y dos luces.
+
 ## Cinco materiales
 
 Los colores se calculan en espacio lineal. Los valores RGB de albedo están entre
@@ -114,8 +123,8 @@ opacos o mates. Las variantes de color del casco no se cuentan como materiales e
 
 | Material | Textura propia | Albedo RGB | Especular / exponente | Transparencia | Reflectividad | IOR |
 |---|---|---|---|---|---|---|
-| Aleación del casco | Paneles, uniones, pernos y desgaste | 0.67, 0.67, 0.62 | 0.38 / 55 | 0 | 0.12 | 1.0 |
-| Metal oscuro pulido | Estrías y grano de metal | 0.105, 0.14, 0.17 | 0.80 / 120 | 0 | 0.52 | 1.0 |
+| Aleación del casco | Paneles, uniones, pernos y desgaste | 0.58, 0.61, 0.64 | 0.38 / 55 | 0 | 0.10 | 1.0 |
+| Metal oscuro pulido | Estrías y grano de metal | 0.105, 0.14, 0.17 | 0.80 / 120 | 0 | 0.42 | 1.0 |
 | Vidrio de cabina | Variación superficial fina con tinte azulado | 0.63, 0.83, 0.90 | 0.95 / 180 | 0.86 | 0.08 | 1.5 |
 | Arenisca | Grano y variación por bloque | 0.61, 0.39, 0.20 | 0.06 / 12 | 0 | 0 | 1.0 |
 | Paneles del motor | Franjas y celdas luminosas | 0.12, 0.66, 0.95 | 0.65 / 85 | 0 | 0.16 | 1.0 |

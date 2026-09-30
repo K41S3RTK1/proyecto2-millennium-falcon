@@ -69,14 +69,14 @@ impl Skybox {
 fn environment(d: V) -> V {
     let h = d.y;
     let angle = d.x.atan2(d.z);
-    let horizon = V::new(0.93, 0.62, 0.38);
-    let zenith = V::new(0.14, 0.30, 0.42);
+    let horizon = V::new(0.64, 0.40, 0.23);
+    let zenith = V::new(0.08, 0.21, 0.34);
     let mut c = horizon.mix(zenith, (h.max(0.) * 1.8).clamp(0., 1.).powf(0.65));
     // Dunas lejanas pertenecen al entorno; el diorama tiene su propia base finita.
     let ridge = -0.14 + 0.017 * (angle * 7.).sin() + 0.012 * (angle * 13. + 1.).sin();
     if h < ridge {
-        let dune = V::new(0.39, 0.22, 0.13);
-        c = dune.mix(V::new(0.59, 0.36, 0.19), (-h * 2.).clamp(0., 1.));
+        let dune = V::new(0.24, 0.115, 0.06);
+        c = dune.mix(V::new(0.40, 0.22, 0.105), (-h * 2.).clamp(0., 1.));
     }
     for (dir, radius, tint) in [
         (

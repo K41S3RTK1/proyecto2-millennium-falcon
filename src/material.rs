@@ -28,11 +28,11 @@ pub fn materials() -> Vec<Material> {
         Material {
             name: "Aleación del casco",
             texture: Texture::Hull,
-            albedo: V::new(0.67, 0.67, 0.62),
+            albedo: V::new(0.58, 0.61, 0.64),
             specular: 0.38,
             shininess: 55.,
             transparency: 0.,
-            reflectivity: 0.12,
+            reflectivity: 0.10,
             ior: 1.,
             emission: V::default(),
         },
@@ -43,7 +43,7 @@ pub fn materials() -> Vec<Material> {
             specular: 0.8,
             shininess: 120.,
             transparency: 0.,
-            reflectivity: 0.52,
+            reflectivity: 0.42,
             ior: 1.,
             emission: V::default(),
         },
@@ -78,7 +78,7 @@ pub fn materials() -> Vec<Material> {
             transparency: 0.,
             reflectivity: 0.16,
             ior: 1.,
-            emission: V::new(0.1, 0.75, 1.3),
+            emission: V::new(0.035, 0.55, 1.8),
         },
     ]
 }
@@ -99,11 +99,11 @@ impl Material {
                 let bolt = u.rem_euclid(0.72) < 0.055 && v.rem_euclid(0.72) < 0.055;
                 self.albedo
                     * (if seam {
-                        0.48
+                        0.34
                     } else if bolt {
                         0.25
                     } else {
-                        0.78 + panel * 0.25 + grain * 0.08
+                        0.72 + panel * 0.30 + grain * 0.06
                     })
             }
             Texture::Dark => {

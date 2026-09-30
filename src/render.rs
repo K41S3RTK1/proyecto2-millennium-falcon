@@ -72,7 +72,7 @@ pub fn trace(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -> 
     let front = ray.d.dot(hit.normal) < 0.;
     let n = if front { hit.normal } else { -hit.normal };
     let surface = mat.color(hit.point, hit.normal).hadamard(block.tint);
-    let mut diffuse = V::new(0.18, 0.20, 0.24);
+    let mut diffuse = V::new(0.095, 0.12, 0.17);
     let mut specular = V::default();
     // Oclusión local de primer impacto para leer uniones y relieves.
     if depth == 0 && cfg.quality > 0 && mat.transparency == 0. {
@@ -171,7 +171,7 @@ pub fn trace(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -> 
 }
 pub fn display(v: V) -> [u8; 3] {
     fn channel(c: f32) -> u8 {
-        let c = c.max(0.) * 1.05;
+        let c = c.max(0.) * 0.90;
         let mapped = (c * (2.51 * c + 0.03) / (c * (2.43 * c + 0.59) + 0.14)).clamp(0., 1.);
         (mapped.powf(1. / 2.2) * 255. + 0.5) as u8
     }

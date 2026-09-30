@@ -23,8 +23,8 @@ impl Scene {
             bvh,
             sky: Skybox::new(192),
             lights: vec![
-                (V::new(-9., 15., -10.), V::new(1.0, 0.82, 0.62), 1.3),
-                (V::new(8., 9., -1.), V::new(0.60, 0.80, 1.), 0.40),
+                (V::new(-9., 15., -10.), V::new(1.0, 0.80, 0.59), 1.05),
+                (V::new(8., 9., -1.), V::new(0.48, 0.70, 1.), 0.32),
             ],
         }
     }
@@ -58,7 +58,7 @@ impl Builder {
                 let px = x as f32 * s;
                 let pz = z as f32 * s;
                 let tint = if (px * px + pz * pz).sqrt() < 6.6 {
-                    V::new(0.85, 0.91, 1.0)
+                    V::new(0.62, 0.72, 0.86)
                 } else {
                     V::splat(1.)
                 };

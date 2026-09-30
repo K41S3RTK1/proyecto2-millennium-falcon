@@ -163,7 +163,7 @@ pub fn run(
     let mut motion_quality = if adaptive {
         MotionQuality::Adaptive
     } else {
-        MotionQuality::Retina
+        MotionQuality::Sharp
     };
     let mut dirty = true;
     let mut refined_level = 0;
