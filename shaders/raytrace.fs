@@ -15,6 +15,10 @@ uniform float shotAge, muzzleFlash;
 uniform int flightEnabled;
 uniform float flightProgress, flightBoost, flightAge;
 uniform vec3 shipOffset;
+uniform int combatEnabled;
+uniform vec3 combatA, combatB, combatHp, combatImpacts;
+uniform float combatShotAge;
+
 vec4 dataAt(int i) { return texelFetch(sceneData, ivec2(i % 1024, i / 1024), 0); }
 struct Hit { float t; int object; vec3 p; vec3 n; };
 struct Material { vec3 albedo; float spec; float shine; float trans; float refl; float ior; vec3 emission; int tex; };
@@ -184,8 +188,33 @@ vec3 exhaustGlow(vec3 o,vec3 d,float limit) {
     }
     return color;
 }
+vec3 combatGlow(vec3 o,vec3 d,float limit) {
+    if(combatEnabled==0) return vec3(0);
+    vec3 color=vec3(0);
+    if(combatShotAge>=0. && combatShotAge<.55) color+=vec3(2.8,.06,.015)*boltSegment(o,d,limit,combatA,combatB,.012,.09);
+    for(int i=0;i<3;i++) {
+        vec3 center=i==0?vec3(-8,7,-18):(i==1?vec3(0,10,-23):vec3(8,7,-18));
+        float age=combatImpacts[i]; bool destroyed=combatHp[i]==0.;
+        float duration=destroyed?1.6:.35;
+        if(age<0. || age>=duration) continue;
+        float radius=destroyed?.6+age*3.5:.4+age*1.5,fade=1.-age/duration;
+        float along=dot(center-o,d);
+        if(along>0. && along-radius<limit) {
+            vec3 delta=o+d*along-center;
+            float r2=dot(delta,delta)/(radius*radius);
+            color+=vec3(3.,.65,.035)*(exp(-r2*3.)*fade)+vec3(2.,1.5,.5)*(exp(-r2*16.)*fade*fade);
+        }
+        if(destroyed) for(int j=0;j<12;j++) {
+            float angle=float(j)*2.399963;
+            vec3 direction=normalize(vec3(cos(angle),sin(float(j)*1.7),sin(angle)));
+            vec3 a=center+direction*(age*6.);
+            color+=vec3(2.,.32,.025)*(boltSegment(o,d,limit,a,a+direction*.6,.009,.04)*fade);
+        }
+    }
+    return color;
+}
 vec3 effects(vec3 o,vec3 d,float limit) {
-    return flightEnabled!=0?exhaustGlow(o,d,limit):saberGlow(o,d,limit)+blasterGlow(o,d,limit);
+    return flightEnabled!=0?exhaustGlow(o,d,limit)+combatGlow(o,d,limit):saberGlow(o,d,limit)+blasterGlow(o,d,limit);
 }
 struct Task { vec3 o; vec3 d; vec3 throughput; float weight; int depth; };
 vec3 traceRay(vec3 origin, vec3 direction) {

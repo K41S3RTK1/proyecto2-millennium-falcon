@@ -21,6 +21,7 @@ pub struct Settings {
     pub space: bool,
     pub shot: crate::blaster::Shot,
     pub flight: crate::flight::Flight,
+    pub combat: crate::combat::Combat,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -34,6 +35,7 @@ impl Default for Settings {
             space: false,
             shot: crate::blaster::Shot::default(),
             flight: crate::flight::Flight::default(),
+            combat: crate::combat::Combat::default(),
         }
     }
 }
@@ -96,7 +98,7 @@ pub fn trace(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -> 
 fn trace_local(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -> V {
     let glow = |limit| {
         if cfg.flight.active {
-            cfg.flight.glow(ray, limit)
+            cfg.flight.glow(ray, limit) + cfg.combat.glow(ray, limit)
         } else {
             saber_glow(ray, limit) + cfg.shot.glow(ray, limit)
         }

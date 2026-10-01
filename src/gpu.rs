@@ -182,6 +182,7 @@ impl Renderer {
             ("skyEnabled", i32::from(cfg.skybox)),
             ("spaceMode", i32::from(cfg.space)),
             ("flightEnabled", i32::from(cfg.flight.active)),
+            ("combatEnabled", i32::from(cfg.combat.enabled)),
             (
                 "skySize",
                 if cfg.space {
@@ -194,6 +195,30 @@ impl Renderer {
             let loc = self.shader.get_shader_location(name);
             self.shader.set_shader_value(loc, value);
         }
+        let (ca, cb) = cfg.combat.segment();
+        for (name, value) in [
+            ("combatA", ca),
+            ("combatB", cb),
+            (
+                "combatHp",
+                V::new(
+                    cfg.combat.hp[0] as f32,
+                    cfg.combat.hp[1] as f32,
+                    cfg.combat.hp[2] as f32,
+                ),
+            ),
+            (
+                "combatImpacts",
+                V::new(
+                    cfg.combat.impacts[0],
+                    cfg.combat.impacts[1],
+                    cfg.combat.impacts[2],
+                ),
+            ),
+        ] {
+            let loc = self.shader.get_shader_location(name);
+            self.shader.set_shader_value(loc, vector(value));
+        }
         let (a, b, m, flash) = cfg.shot.segments();
         for (name, v) in [("boltA", a), ("boltB", b), ("muzzle", m)] {
             let loc = self.shader.get_shader_location(name);
@@ -201,6 +226,7 @@ impl Renderer {
         }
         for (name, v) in [
             ("shotAge", cfg.shot.age),
+            ("combatShotAge", cfg.combat.shot_age),
             ("muzzleFlash", flash),
             ("flightProgress", cfg.flight.progress),
             ("flightBoost", cfg.flight.boost()),
@@ -321,6 +347,7 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
                 skybox: variant != 4,
                 space: variant == 5,
                 flight: crate::flight::Flight::default(),
+                combat: crate::combat::Combat::default(),
                 shot: crate::blaster::Shot {
                     age: if variant >= 6 {
                         if variant == 6 { 0.03 } else { 0.19 }
@@ -436,10 +463,71 @@ pub fn validate_flight() -> Result<(), Box<dyn Error>> {
             }
         }
     }
+    for case in 0..5 {
+        let flight = crate::flight::Flight {
+            active: true,
+            progress: 1.,
+            boost_age: if case == 4 { 1. } else { -1. },
+            ..Default::default()
+        };
+        let mut combat = crate::combat::Combat {
+            enabled: true,
+            ..Default::default()
+        };
+        match case {
+            1 => {
+                combat.fire();
+                combat.update(0.3);
+            }
+            2 => {
+                combat.hp[0] = 2;
+                combat.impacts[0] = 0.1;
+            }
+            3 => {
+                combat.hp[0] = 0;
+                combat.impacts[0] = 0.45;
+            }
+            4 => {
+                combat.hp = [0; 3];
+                combat.impacts = [-1., -1., 0.9];
+            }
+            _ => {}
+        }
+        let scene = Scene::flight_combat(combat.mask());
+        let mut renderer = Renderer::new(&mut window, &thread, &scene)?;
+        for quality in [0, 1] {
+            let cfg = Settings {
+                width: 320,
+                height: 200,
+                quality,
+                space: true,
+                flight,
+                combat,
+                ..Default::default()
+            };
+            let camera = combat.camera(flight);
+            renderer.render(&mut window, &thread, camera, cfg)?;
+            let gpu = renderer.pixels()?;
+            let cpu = crate::render::render(&scene, camera, cfg).pixels;
+            let mut error = 0u64;
+            let mut large = 0;
+            for (a, b) in cpu.chunks_exact(4).zip(gpu.chunks_exact(4)) {
+                let delta: [u8; 3] = std::array::from_fn(|i| a[i].abs_diff(b[i]));
+                error += delta.iter().map(|&v| v as u64).sum::<u64>();
+                if delta.iter().any(|&v| v > 32) {
+                    large += 1;
+                }
+            }
+            let mean = error as f64 / (cfg.width * cfg.height * 3) as f64;
+            let outliers = large as f64 * 100. / (cfg.width * cfg.height) as f64;
+            println!("Combate caso{case} q{quality}: error {mean:.4}/255; atipicos {outliers:.3}%");
+            failed |= mean > 1. || outliers > 0.5;
+        }
+    }
     if failed {
         Err("El modo nave excedió la tolerancia CPU/GPU".into())
     } else {
-        println!("Modo nave: 24 comparaciones CPU/GPU aprobadas");
+        println!("Modo nave: 34 comparaciones CPU/GPU aprobadas (24 vuelo + 10 combate)");
         Ok(())
     }
 }

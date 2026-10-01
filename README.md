@@ -52,6 +52,17 @@ pista a la vez; **M** conserva su estado al entrar y salir de este modo.
 
 ![Halcón en modo nave con la estela activa](renders/modo-nave.png)
 
+Al llegar al espacio aparecen **tres cazas TIE** de bloques, con cabina y paneles
+plegados inspirados en la referencia. **F** dispara automáticamente al primer
+objetivo vivo. Hay un proyectil en vuelo a la vez (0.55 s); cada caza requiere
+**tres impactos**, muestra un destello al recibir daño y explota al tercero.
+El contador muestra la vida restante; al destruir los tres aparece la victoria.
+**N** repone la oleada sin repetir el ascenso. **E** funciona durante el combate;
+los disparos y explosiones de esta primera versión son visuales y conservan el audio de vuelo.
+
+![Combate contra tres cazas TIE](renders/combate-tie.png)
+
+- **F**: disparar; **N**: nueva oleada (sólo en el espacio).
 - **1–8**: regresar a la vista correspondiente del diorama.
 - **9**: repetir el ascenso completo.
 - **Arrastre/flechas y rueda/+/-**: girar y acercar/alejar la cámara.
@@ -59,7 +70,8 @@ pista a la vez; **M** conserva su estado al entrar y salir de este modo.
 - **Q**: alternar Nítido 1200 y Fluido 800; **T**: alternar GPU y respaldo CPU.
 - **S**: guardar `renders/vuelo-captura.png`.
 
-La escena de vuelo tiene su propia geometría y BVH. La traslación se aplica a los
+La escena de vuelo tiene su propia geometría y BVH. Los TIE se agregan al llegar
+al espacio y se retiran al destruirse; el BVH sólo se reconstruye en esos cambios. La traslación se aplica a los
 rayos sin reconstruir los bloques por cuadro. La estela es una lámina emisiva
 integrada a lo largo del rayo, recortada por el primer impacto; CPU y GPU calculan
 el mismo efecto. No pretende simular dinámica de fluidos. Los modos gráficos y
@@ -70,11 +82,12 @@ Se pueden verificar imágenes y audio sin interactuar con la ventana:
 
 ```sh
 cargo run --release --offline -- --flight-preview --flight-progress 1 --boost-age 1 --output renders/vuelo-captura.png
+cargo run --release --offline -- --combat-preview --combat-shot-age .3 --output renders/vuelo-captura.png
 cargo run --release --offline -- --validate-flight
 cargo run --release --offline -- --audio-check
 ```
 
-La revisión de esta rama incluye 26 pruebas, 24 comparaciones CPU/GPU del vuelo,
+La revisión de esta rama incluye 29 pruebas, 34 comparaciones CPU/GPU del vuelo y combate,
 las 64 del diorama y los doce audios. El video final de la entrega no se reemplaza
 por estas pruebas experimentales.
 

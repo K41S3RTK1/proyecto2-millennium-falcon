@@ -40,7 +40,7 @@ impl Shot {
         V::new(1., 0.028, 0.006) * (beam + flash_glow) * (1. - self.age / DURATION).min(0.8) * 5.
     }
 }
-fn segment_glow(ray: Ray, limit: f32, a: V, b: V, core: f32, halo: f32) -> f32 {
+pub(crate) fn segment_glow(ray: Ray, limit: f32, a: V, b: V, core: f32, halo: f32) -> f32 {
     let v = b - a;
     let w = ray.o - a;
     let dv = ray.d.dot(v);

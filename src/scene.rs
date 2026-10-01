@@ -105,6 +105,18 @@ impl Scene {
             ],
         }
     }
+    pub fn flight_combat(mask: u8) -> Self {
+        let mut scene = Self::flight();
+        let mut b = Builder { blocks: Vec::new() };
+        for (i, &center) in crate::combat::TARGETS.iter().enumerate() {
+            if mask & (1 << i) != 0 {
+                b.tie(center);
+            }
+        }
+        scene.blocks.extend(b.blocks);
+        scene.bvh = Bvh::build(&scene.blocks);
+        scene
+    }
     pub fn hit(&self, r: Ray, max: f32) -> Option<Hit> {
         self.bvh.hit(&self.blocks, r, max)
     }
@@ -832,6 +844,58 @@ impl Builder {
         }
         for i in 0..4 {
             self.cube(V::new(-5.15, -0.015, -5.19 - i as f32 * 0.09), 0.09, DARK);
+        }
+    }
+    // Cabina esférica voxel y paneles laterales plegados, inspirados en el TIE de referencia.
+    fn tie(&mut self, center: V) {
+        let cell = 0.24;
+        for x in -5_i32..=5 {
+            for y in -5_i32..=5 {
+                for z in -5_i32..=5 {
+                    let p = V::new(x as f32, y as f32, z as f32) * cell;
+                    if p.len() <= 1.22 && p.len() > 0.94 {
+                        self.block(center + p, V::splat(cell), HULL, V::splat(1.15));
+                    }
+                }
+            }
+        }
+        // Ventana frontal negra con aro y ocho radios metálicos.
+        for x in -4_i32..=4 {
+            for y in -4_i32..=4 {
+                let p = V::new(x as f32 * 0.19, y as f32 * 0.19, 1.14);
+                if p.x * p.x + p.y * p.y < 0.72 {
+                    let rim = p.x * p.x + p.y * p.y > 0.46;
+                    let spoke = x == 0 || y == 0 || x.abs() == y.abs();
+                    self.block(
+                        center + p,
+                        V::new(0.19, 0.19, 0.13),
+                        if rim || spoke { HULL } else { DARK },
+                        V::splat(if rim || spoke { 1.4 } else { 0.18 }),
+                    );
+                }
+            }
+        }
+        for side in [-1., 1.] {
+            self.block(
+                center + V::new(side * 1.8, 0., 0.),
+                V::new(1.7, 0.42, 0.5),
+                HULL,
+                V::splat(1.),
+            );
+            for y in -10_i32..=10 {
+                for z in -7_i32..=7 {
+                    let py = y as f32 * 0.26;
+                    let pz = z as f32 * 0.26;
+                    let px = side * (2.9 - (py.abs() - 0.6).max(0.) * 0.34);
+                    let edge = y.abs() == 10 || z.abs() == 7 || y == 0 || z == 0;
+                    self.block(
+                        center + V::new(px, py, pz),
+                        V::new(0.18, 0.26, 0.26),
+                        if edge { HULL } else { DARK },
+                        V::splat(if edge { 1.5 } else { 0.45 }),
+                    );
+                }
+            }
         }
     }
     fn falcon(&mut self) {

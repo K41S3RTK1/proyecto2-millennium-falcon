@@ -15,7 +15,10 @@ pub fn run(
     audio: &Audio,
     prefer_gpu: bool,
 ) -> Result<usize, Box<dyn Error>> {
-    let scene = Scene::flight();
+    let mut scene = Scene::flight();
+    let mut combat = crate::combat::Combat::default();
+    let mut scene_mask = 0;
+    let mut combat_clock = Instant::now();
     let mut gpu = Renderer::new(window, thread, &scene).ok();
     let mut use_gpu = prefer_gpu && gpu.is_some();
     let mut cpu_texture: Option<Texture2D> = None;
@@ -48,6 +51,7 @@ pub fn run(
             }
         }
         if pressed(KEY_NINE, '9') {
+            combat = crate::combat::Combat::default();
             audio.event(Event::View(8));
             waiting = true;
         }
@@ -77,6 +81,32 @@ pub fn run(
         } else {
             (status.position / status.durations[Track::Takeoff as usize].max(0.1)).clamp(0., 1.)
         };
+        let now = Instant::now();
+        let elapsed = now.duration_since(combat_clock).as_secs_f32();
+        combat_clock = now;
+        combat.enabled = progress >= 1.;
+        combat.update(elapsed);
+        if pressed(KEY_N, 'n') && combat.enabled {
+            combat = crate::combat::Combat {
+                enabled: true,
+                ..Default::default()
+            };
+        }
+        if pressed(KEY_F, 'f') {
+            if combat.fire() {
+                message.clear();
+            } else {
+                message = if !combat.enabled {
+                    "Disparos disponibles al llegar al espacio"
+                } else if combat.mask() == 0 {
+                    "Escuadron destruido. N: nueva oleada"
+                } else {
+                    "Laser en vuelo..."
+                }
+                .into();
+                message_until = now + std::time::Duration::from_secs(2);
+            }
+        }
         let flight = Flight {
             active: true,
             progress,
@@ -104,6 +134,12 @@ pub fn run(
                 message = "Impulso disponible al llegar al espacio".into();
                 message_until = Instant::now() + std::time::Duration::from_secs(3);
             }
+        }
+        if combat.mask() != scene_mask {
+            scene_mask = combat.mask();
+            scene = Scene::flight_combat(scene_mask);
+            gpu = Renderer::new(window, thread, &scene).ok();
+            use_gpu &= gpu.is_some();
         }
         let dt = window.get_frame_time().min(0.05);
         if viewport.check_collision_point_rec(mouse) {
@@ -137,7 +173,7 @@ pub fn run(
         }
         zoom = zoom.clamp(0.55, 2.0);
         pitch = pitch.clamp(-23., 62.);
-        let mut camera = flight.camera();
+        let mut camera = combat.camera(flight);
         camera.yaw += yaw;
         camera.pitch += pitch;
         camera.distance *= zoom;
@@ -152,6 +188,7 @@ pub fn run(
             quality: 0,
             space: true,
             flight,
+            combat,
             ..Settings::default()
         };
         if use_gpu {
@@ -268,8 +305,21 @@ pub fn run(
             Color::WHITE,
         );
         draw.draw_text(&format!("1-8: diorama   M: audio {}   Q: {}   T: CPU/GPU   S: captura   |   {} {}x{}  {} FPS",if status.muted {"NO"}else{"SI"},if sharp {"Nitido"}else{"Fluido"},if use_gpu {"GPU"}else{"CPU"},cfg.width,cfg.height,fps),20,height-32,16,accent);
+        if combat.enabled {
+            let alive = combat.hp.iter().filter(|&&hp| hp > 0).count();
+            let label = if alive == 0 {
+                "VICTORIA | 3 TIE destruidos | N: nueva oleada".to_string()
+            } else {
+                format!(
+                    "F: disparar | TIE 1: {}/3   TIE 2: {}/3   TIE 3: {}/3 | N: reiniciar",
+                    combat.hp[0], combat.hp[1], combat.hp[2]
+                )
+            };
+            draw.draw_rectangle(12, 103, 760, 30, Color::new(8, 15, 26, 230));
+            draw.draw_text(&label, 24, 110, 18, Color::new(255, 195, 100, 255));
+        }
         if Instant::now() < message_until {
-            draw.draw_text(&message, 24, 112, 18, Color::WHITE);
+            draw.draw_text(&message, 24, 145, 18, Color::WHITE);
         }
     }
     Ok(0)
