@@ -1,6 +1,6 @@
 # Audio local
 
-Copiar los doce WAV en esta carpeta, conservando exactamente estos nombres:
+Copiar los catorce WAV en esta carpeta, conservando exactamente estos nombres:
 
 | Archivo | Duración de la grabación local | Uso |
 |---|---:|---|
@@ -16,12 +16,17 @@ Copiar los doce WAV en esta carpeta, conservando exactamente estos nombres:
 | `Despegue.wav` | 49.835 s | Ascenso del modo 9, una vez y completo |
 | `ambientefalcon.wav` | 97.621 s | Ambiente espacial del modo 9, en bucle |
 | `Impulso.wav` | 19.797 s | E en el espacio, una vez; después regresa el ambiente |
+| `disparofalcon.wav` | 2.048 s | Cada disparo aceptado con F en el espacio |
+| `explotion.wav` | 3.413 s | Cada TIE destruido al tercer impacto |
 
 Las grabaciones originales son WAV PCM, 48 kHz, estéreo, 24 bits.
 Los tres archivos del modo nave también son WAV a 48 kHz; despegue e impulso
 son mono y el ambiente espacial es estéreo. Raylib lee su
 duración real; no se recortan ni convierten. Repetir una tecla de efecto reinicia
-su secuencia. Nunca se reproducen dos pistas simultáneamente. M silencia todo
+su secuencia. Hay una sola pista principal. En combate, disparos y explosiones
+suenan encima del ambiente o impulso, sin cortarlos. Se usan cuatro voces de
+disparo y tres de explosión para conservar las colas de efectos consecutivos.
+Los dos efectos nuevos son PCM estéreo de 48 kHz y 24 bits. M silencia todo
 sin alterar el avance; I detiene la pista actual y repite la intro desde su fase
 azul silenciosa. Al cerrar se detiene y descarga el audio.
 
@@ -34,3 +39,6 @@ El reloj del despegue gobierna el ascenso. E se habilita al terminarlo; cada
 pulsación interrumpe el ambiente y reinicia el impulso. Salir con 1–8 cancela
 la pista de vuelo y activa el audio de la vista elegida. 9 reinicia todo el
 ascenso. Los audios se conservan completos y sin conversiones.
+
+N detiene las colas de combate al reponer la oleada. Salir con 1–8, repetir
+el ascenso con 9 o cerrar la ventana también detiene los efectos.

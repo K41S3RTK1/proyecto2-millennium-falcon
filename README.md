@@ -58,7 +58,10 @@ objetivo vivo. Hay un proyectil en vuelo a la vez (0.55 s); cada caza requiere
 **tres impactos**, muestra un destello al recibir daño y explota al tercero.
 El contador muestra la vida restante; al destruir los tres aparece la victoria.
 **N** repone la oleada sin repetir el ascenso. **E** funciona durante el combate;
-los disparos y explosiones de esta primera versión son visuales y conservan el audio de vuelo.
+cada disparo aceptado reproduce `disparofalcon.wav` y cada TIE destruido reproduce
+`explotion.wav`, sobre el ambiente o impulso. Los efectos consecutivos pueden
+superponerse sin recortarse. **M** silencia todo; **N**, **9** y salir del modo
+nave detienen los efectos pendientes.
 
 ![Combate contra tres cazas TIE](renders/combate-tie.png)
 
@@ -88,7 +91,7 @@ cargo run --release --offline -- --audio-check
 ```
 
 La revisión de esta rama incluye 29 pruebas, 34 comparaciones CPU/GPU del vuelo y combate,
-las 64 del diorama y los doce audios. El video final de la entrega no se reemplaza
+las 64 del diorama y los catorce audios. El video final de la entrega no se reemplaza
 por estas pruebas experimentales.
 
 ## Ejecutar

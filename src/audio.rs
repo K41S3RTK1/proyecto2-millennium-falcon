@@ -1,4 +1,4 @@
-//! Un único flujo audible. La decodificación se actualiza en un hilo propio para
+//! Una pista principal más efectos simultáneos de combate. Hilo propio para
 //! que los renders de calidad no interrumpan el audio.
 use raylib::prelude::*;
 use std::{
@@ -64,6 +64,28 @@ impl Track {
             0.45
         } else {
             0.65
+        }
+    }
+}
+#[derive(Clone, Copy, Debug)]
+#[repr(usize)]
+pub enum Effect {
+    FalconShot,
+    Explosion,
+}
+impl Effect {
+    pub const ALL: [Self; 2] = [Self::FalconShot, Self::Explosion];
+    pub fn filename(self) -> &'static str {
+        match self {
+            Self::FalconShot => "disparofalcon.wav",
+            Self::Explosion => "explotion.wav",
+        }
+    }
+    fn voices(self) -> usize {
+        // 2.048 s / 0.55 s entre disparos; 3.413 s / 1.65 s entre bajas.
+        match self {
+            Self::FalconShot => 4,
+            Self::Explosion => 3,
         }
     }
 }
@@ -170,6 +192,7 @@ pub struct Status {
     pub flight_ready: bool,
     pub muted: bool,
     pub available: bool,
+    pub effects_playing: [usize; 2],
 }
 impl Default for Status {
     fn default() -> Self {
@@ -194,11 +217,14 @@ impl Default for Status {
             flight_ready: false,
             muted: false,
             available: false,
+            effects_playing: [0; 2],
         }
     }
 }
 enum Command {
     Event(Event),
+    Effect(Effect),
+    StopEffects,
     SeekNearEnd,
     Shutdown,
 }
@@ -235,13 +261,35 @@ impl Audio {
                     loaded
                 })
                 .collect();
+            // Buffers independientes: un disparo nuevo no corta la cola del anterior.
+            let effects: Vec<Vec<_>> = Effect::ALL
+                .iter()
+                .map(|&effect| {
+                    (0..effect.voices())
+                        .map(|_| {
+                            device.as_ref().and_then(|d| {
+                                let path = format!("assets/audio/{}", effect.filename());
+                                d.new_sound(&path)
+                                    .map_err(|e| eprintln!("Audio {path}: {e}"))
+                                    .ok()
+                            })
+                        })
+                        .collect()
+                })
+                .collect();
+            let stop_effects = || {
+                for sound in effects.iter().flatten().flatten() {
+                    sound.stop();
+                }
+            };
             let mut durations = Status::default().durations;
             for track in Track::ALL {
                 if let Some(m) = &music[track as usize] {
                     durations[track as usize] = m.get_time_length();
                 }
             }
-            let available = music.iter().all(Option::is_some);
+            let available =
+                music.iter().all(Option::is_some) && effects.iter().flatten().all(Option::is_some);
             if !available {
                 eprintln!(
                     "Audio: faltan archivos o un dispositivo; se conserva la secuencia en silencio."
@@ -267,7 +315,28 @@ impl Audio {
                         for command in commands {
                             match command {
                                 Command::Shutdown => break 'audio,
-                                Command::Event(event) => state.event(event),
+                                Command::Event(event) => {
+                                    if matches!(
+                                        event,
+                                        Event::View(_) | Event::BeginIntro | Event::Stop
+                                    ) {
+                                        stop_effects();
+                                    }
+                                    state.event(event);
+                                }
+                                Command::Effect(effect) => {
+                                    if !state.in_intro && state.view == 8 && state.flight_ready {
+                                        let pool = &effects[effect as usize];
+                                        if let Some(sound) =
+                                            pool.iter().flatten().find(|s| !s.is_playing())
+                                        {
+                                            sound.set_volume(if state.muted { 0. } else { 0.65 });
+                                            sound.play();
+                                            eprintln!("Efecto: {}", effect.filename());
+                                        }
+                                    }
+                                }
+                                Command::StopEffects => stop_effects(),
                                 Command::SeekNearEnd => {
                                     if let Some(track) = playing
                                         && let Some(m) = &music[track as usize]
@@ -280,6 +349,9 @@ impl Audio {
                     }
                     Err(mpsc::RecvTimeoutError::Disconnected) => break,
                     Err(mpsc::RecvTimeoutError::Timeout) => {}
+                }
+                for sound in effects.iter().flatten().flatten() {
+                    sound.set_volume(if state.muted { 0. } else { 0.65 });
                 }
                 if applied != state.revision {
                     if let Some(track) = playing
@@ -326,6 +398,13 @@ impl Audio {
                     flight_ready: state.flight_ready,
                     muted: state.muted,
                     available,
+                    effects_playing: std::array::from_fn(|i| {
+                        effects[i]
+                            .iter()
+                            .flatten()
+                            .filter(|s| s.is_playing())
+                            .count()
+                    }),
                 };
             }
             if let Some(track) = playing
@@ -333,7 +412,8 @@ impl Audio {
             {
                 m.stop_stream();
             }
-            // Music se destruye antes del dispositivo que lo creó.
+            stop_effects();
+            // Music y Sound se destruyen antes del dispositivo que los creó.
         });
         let _ = started.recv_timeout(Duration::from_secs(5));
         Self {
@@ -344,6 +424,12 @@ impl Audio {
     }
     pub fn event(&self, event: Event) {
         let _ = self.sender.send(Command::Event(event));
+    }
+    pub fn effect(&self, effect: Effect) {
+        let _ = self.sender.send(Command::Effect(effect));
+    }
+    pub fn stop_effects(&self) {
+        let _ = self.sender.send(Command::StopEffects);
     }
     pub fn status(&self) -> Status {
         self.status.lock().unwrap().clone()
@@ -366,7 +452,7 @@ impl Drop for Audio {
 pub fn check() -> Result<(), Box<dyn std::error::Error>> {
     let audio = Audio::new();
     if !audio.status().available {
-        return Err("No se cargaron los doce archivos de audio".into());
+        return Err("No se cargaron los catorce archivos de audio".into());
     }
     for track in Track::ALL {
         println!(
@@ -453,6 +539,12 @@ pub fn check() -> Result<(), Box<dyn std::error::Error>> {
     }
     audio.event(Event::View(8));
     wait(Some(Track::Takeoff))?;
+    audio.effect(Effect::FalconShot);
+    audio.effect(Effect::Explosion);
+    thread::sleep(Duration::from_millis(60));
+    if audio.status().effects_playing != [0, 0] {
+        return Err("Efectos activos durante el ascenso".into());
+    }
     audio.event(Event::Boost);
     wait(Some(Track::Takeoff))?;
     audio.sender.send(Command::SeekNearEnd)?;
@@ -462,14 +554,54 @@ pub fn check() -> Result<(), Box<dyn std::error::Error>> {
     if audio.status().track != Some(Track::FlightAmbient) || audio.status().position > 1.5 {
         return Err("La música espacial no volvió al inicio".into());
     }
+    // Decodificador real: dos disparos superpuestos y una explosión, sin cortar la música.
+    audio.effect(Effect::FalconShot);
+    audio.effect(Effect::FalconShot);
+    audio.effect(Effect::Explosion);
+    thread::sleep(Duration::from_millis(100));
+    let mixed = audio.status();
+    if mixed.effects_playing != [2, 1] || mixed.track != Some(Track::FlightAmbient) || !mixed.muted
+    {
+        return Err(format!("Mezcla espacial incorrecta: {mixed:?}").into());
+    }
+    audio.stop_effects();
+    thread::sleep(Duration::from_millis(60));
+    if audio.status().effects_playing != [0, 0] {
+        return Err("Los efectos no se detuvieron".into());
+    }
     audio.event(Event::Boost);
     wait(Some(Track::Boost))?;
+    audio.effect(Effect::FalconShot);
+    audio.effect(Effect::Explosion);
+    thread::sleep(Duration::from_millis(100));
+    let mixed = audio.status();
+    if mixed.effects_playing != [1, 1] || mixed.track != Some(Track::Boost) {
+        return Err(format!("Los efectos interrumpieron el impulso: {mixed:?}").into());
+    }
+    thread::sleep(Duration::from_millis(3500));
+    if audio.status().effects_playing != [0, 0] {
+        return Err("Los efectos no finalizaron".into());
+    }
     audio.sender.send(Command::SeekNearEnd)?;
     wait(Some(Track::FlightAmbient))?;
+    audio.effect(Effect::FalconShot);
+    audio.effect(Effect::Explosion);
     audio.event(Event::View(0));
     wait(Some(Track::Cantina))?;
+    if audio.status().effects_playing != [0, 0] {
+        return Err("Persisten efectos al salir del vuelo".into());
+    }
+    audio.effect(Effect::FalconShot);
+    thread::sleep(Duration::from_millis(60));
+    if audio.status().effects_playing != [0, 0] {
+        return Err("Disparo espacial fuera del vuelo".into());
+    }
+    println!(
+        "disparofalcon.wav y explotion.wav: carga, mezcla, silencio, fin y salida verificados"
+    );
+
     audio.event(Event::BeginIntro);
     wait(None)?;
-    println!("Audio: doce archivos, secuencias y bucles verificados sin superposición.");
+    println!("Audio: catorce archivos; secuencias, bucles y mezcla de combate verificados.");
     Ok(())
 }

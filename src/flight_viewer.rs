@@ -1,6 +1,6 @@
 //! Visor modal: al salir se destruye la escena de vuelo y se conserva el diorama.
 use crate::{
-    audio::{Audio, Event, Track},
+    audio::{Audio, Effect, Event, Track},
     flight::Flight,
     gpu::Renderer,
     render::{self, Settings},
@@ -85,8 +85,15 @@ pub fn run(
         let elapsed = now.duration_since(combat_clock).as_secs_f32();
         combat_clock = now;
         combat.enabled = progress >= 1.;
+        let previous_hp = combat.hp;
         combat.update(elapsed);
+        for (&before, &after) in previous_hp.iter().zip(&combat.hp) {
+            if before > 0 && after == 0 {
+                audio.effect(Effect::Explosion);
+            }
+        }
         if pressed(KEY_N, 'n') && combat.enabled {
+            audio.stop_effects();
             combat = crate::combat::Combat {
                 enabled: true,
                 ..Default::default()
@@ -94,6 +101,7 @@ pub fn run(
         }
         if pressed(KEY_F, 'f') {
             if combat.fire() {
+                audio.effect(Effect::FalconShot);
                 message.clear();
             } else {
                 message = if !combat.enabled {
