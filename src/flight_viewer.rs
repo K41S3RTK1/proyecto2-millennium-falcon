@@ -158,7 +158,7 @@ pub fn run(
             }
             zoom *= (-window.get_mouse_wheel_move() * 0.08).exp();
         }
-        yaw += (i32::from(window.is_key_down(KEY_RIGHT)) - i32::from(window.is_key_down(KEY_LEFT)))
+        yaw += (i32::from(window.is_key_down(KEY_LEFT)) - i32::from(window.is_key_down(KEY_RIGHT)))
             as f32
             * 40.
             * dt;

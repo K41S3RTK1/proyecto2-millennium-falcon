@@ -407,7 +407,7 @@ pub fn run(
             }
         }
         let horizontal =
-            i32::from(window.is_key_down(KEY_RIGHT)) - i32::from(window.is_key_down(KEY_LEFT));
+            i32::from(window.is_key_down(KEY_LEFT)) - i32::from(window.is_key_down(KEY_RIGHT));
         let vertical =
             i32::from(window.is_key_down(KEY_UP)) - i32::from(window.is_key_down(KEY_DOWN));
         // Leer caracteres respeta la distribución del teclado (español, inglés y Shift).

@@ -8,10 +8,11 @@ y dos soldados rebeldes junto a la rampa.
 
 [![Millennium Falcon en el puerto espacial](renders/falcon.png)](renders/diorama-final.mp4)
 
-**[▶ Ver el video final con audio](renders/diorama-final.mp4)** — 3 min 29 s,
+**[▶ Ver el video final con audio](renders/diorama-final.mp4)** — 4 min 49 s,
 1200×800, 30 cuadros/s, MP4 H.264 y audio AAC estéreo. Incluye la introducción
 completa, giro de 360° y zoom, materiales, comparaciones de reflexión y refracción,
-el droide, Vader, los rebeldes con disparos y el skybox espacial.
+el droide, Vader, los rebeldes con disparos, el skybox espacial y el modo nave
+con ascenso, impulso y combate contra tres TIE con audio.
 
 El video se exportó cuadro a cuadro con el renderer del proyecto y se codificó
 con FFmpeg, sincronizando los WAV locales con las escenas. Es un recorrido
@@ -30,14 +31,18 @@ Si GitHub no muestra el reproductor, descargar el MP4 con **View raw / Download*
 | 2:36 | Vader, sable y música de su vista |
 | 2:55 | Rebeldes y tres disparos alternados |
 | 3:07 | Entorno espacial y comparación del skybox |
+| 3:29 | Modo nave: ascenso completo y giro a ambos lados |
+| 4:19 | Llegada al espacio y tres cazas TIE |
+| 4:23 | Impulso, nueve disparos y tres explosiones con audio |
+| 4:43 | Victoria y regreso del ambiente espacial |
 
 El [recorrido inicial sin las últimas mejoras](renders/diorama.webm) se conserva
 como referencia. Para la presentación en vivo, consultar [ENTREGA.md](ENTREGA.md).
 
-## Extra experimental: modo nave
+## Modo nave y combate espacial
 
-Esta rama, `extras-modo-nave`, parte de la entrega `18d74e9`. La versión entregada
-permanece en `main`; el video anterior corresponde a esa entrega.
+Integrado en `main` desde la rama `extras-modo-nave`. El estado previo al modo
+nave se conserva en el commit `18d74e9`. El video final incluye ambos modos.
 
 **9 / Nave** abre una escena independiente con sólo el Halcón a escala 1.65,
 con rampa y tren recogidos. Asciende durante los **49.835 s** de `Despegue.wav`:
@@ -47,8 +52,8 @@ Al terminar comienza `ambientefalcon.wav` en bucle (**97.621 s** por vuelta).
 En el espacio, **E** o **Impulso** inicia una estela celeste desde el arco del motor
 trasero y reproduce `Impulso.wav` completo (**19.797 s**). Pulsar otra vez reinicia
 el impulso. Al terminar se desvanece la estela y vuelve la música espacial.
-Durante el ascenso el impulso permanece deshabilitado. Sólo se reproduce una
-pista a la vez; **M** conserva su estado al entrar y salir de este modo.
+Durante el ascenso el impulso permanece deshabilitado. Hay una sola pista
+principal, acompañada por efectos de combate; **M** conserva su estado al entrar y salir de este modo.
 
 ![Halcón en modo nave con la estela activa](renders/modo-nave.png)
 
@@ -80,7 +85,7 @@ integrada a lo largo del rayo, recortada por el primer impacto; CPU y GPU calcul
 el mismo efecto. No pretende simular dinámica de fluidos. Los modos gráficos y
 las dimensiones del diorama original se conservan al regresar.
 
-Los tres WAV nuevos se colocan en `assets/audio/` y siguen excluidos de Git.
+Los cinco WAV del modo nave se colocan en `assets/audio/` y siguen excluidos de Git.
 Se pueden verificar imágenes y audio sin interactuar con la ventana:
 
 ```sh
@@ -90,9 +95,20 @@ cargo run --release --offline -- --validate-flight
 cargo run --release --offline -- --audio-check
 ```
 
-La revisión de esta rama incluye 29 pruebas, 34 comparaciones CPU/GPU del vuelo y combate,
-las 64 del diorama y los catorce audios. El video final de la entrega no se reemplaza
-por estas pruebas experimentales.
+La verificación incluye 29 pruebas, 34 comparaciones CPU/GPU del vuelo y combate,
+las 64 del diorama y los catorce audios. Las flechas horizontales usan el mismo
+sentido en el diorama, el modo nave y el visor web: izquierda gira la escena a
+la izquierda y derecha a la derecha.
+
+Para reproducir el segmento de vuelo y añadirlo al video base anterior (requiere
+FFmpeg y ffprobe, únicamente para producir el video):
+
+```sh
+cargo run --release --offline --example export_flight_video -- /tmp/vuelo-silent.mp4
+python3 scripts/compose_delivery_video.py /ruta/diorama-base.mp4 /tmp/vuelo-silent.mp4 /tmp/diorama-final.mp4
+```
+
+El video base corresponde a `renders/diorama-final.mp4` del commit `18d74e9`.
 
 ## Ejecutar
 
@@ -132,7 +148,7 @@ respaldo. Si el shader no compila, la aplicación vuelve automáticamente a CPU.
 | Alternar raytracer CPU / GPU | `T` (misma cámara y efectos) |
 | Vader y sable | `7` o botón Vader |
 | Soldados rebeldes | `8` o botón Rebeldes |
-| Modo nave experimental | `9` o botón Nave |
+| Modo nave y combate | `9` o botón Nave |
 | Impulso, únicamente en el espacio del modo nave | `E` o botón Impulso |
 | Disparo manual en la vista de rebeldes | `.` / decimal numérico o botón Disparar |
 | Cambiar Tatooine / espacio | `C` |
@@ -355,8 +371,8 @@ presentación conserva la secuencia en silencio.
 cargo run --release --offline -- --audio-check
 ```
 
-Esta comprobación silenciada carga los nueve WAV, adelanta cada stream cerca
-de su final y verifica las transiciones y los dos bucles. La reproducción normal
+Esta comprobación silenciada carga los catorce WAV, adelanta los streams cerca
+de su final y verifica transiciones, bucles y mezcla de efectos de combate. La reproducción normal
 respeta la duración completa de cada grabación.
 
 Los tres materiales de Vader enriquecen el aspecto visual; la rúbrica limita la
@@ -492,9 +508,10 @@ cargo tree --offline
 cargo run --release --offline -- --validate-gpu
 ```
 
-Verificación de entrega del 30 de septiembre de 2026: **23 pruebas aprobadas**,
-formato y Clippy sin advertencias, **64 comparaciones CPU/GPU aprobadas** y
-comprobación de los nueve audios, sus transiciones y bucles sin superposición.
+Verificación de entrega del 1 de octubre de 2026: **29 pruebas aprobadas**,
+formato y Clippy sin advertencias, **64 comparaciones CPU/GPU del diorama** y
+**34 de vuelo y combate** aprobadas. Los **14 audios**, sus transiciones, bucles
+y efectos simultáneos están verificados.
 
 Las pruebas cubren Snell, reflexión interna total, entrada/salida del vidrio,
 rayos dentro y fuera de cajas, equivalencia BVH/búsqueda completa, cámara orbital,

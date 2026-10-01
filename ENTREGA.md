@@ -18,9 +18,13 @@
 7. Probar `8` Rebeldes: escuchar el efecto de entrada y pulsar `.` o Disparar
    para lanzar un proyectil con sonido. Cambiar de vista debe detener el efecto.
 8. Volver a `1` y pulsar Espacio para el recorrido automático. Espacio lo detiene.
-9. Tener el video final `renders/diorama-final.mp4` disponible como respaldo.
-   Dura 3 min 29 s e incluye audio. El recorrido del diorama empieza en 1:34,
-   después de la introducción completa.
+9. Abrir `9` Nave y esperar el ascenso (49.835 s). En el espacio, `E` activa
+   el impulso y `F` dispara: tres impactos destruyen cada TIE. Escuchar el sonido
+   de cada disparo y explosión junto al ambiente o impulso. `N` repone los TIE;
+   `1–8` regresa al diorama. En este modo `F` significa disparar.
+10. Tener el video final `renders/diorama-final.mp4` disponible como respaldo.
+   Dura 4 min 49 s e incluye audio. El recorrido del diorama empieza en 1:34,
+   después de la introducción completa. El modo nave empieza en 3:29.
 
 El indicador de imágenes/s mide cuadros nuevos mostrados; no confundirlo con
 los FPS de interfaz. En reposo puede marcar cero porque no necesita recalcular.
@@ -50,12 +54,14 @@ permanece disponible con `T` o `--cpu`. Los modos de nitidez permiten comparar
 calidad y rendimiento en Apple M1.
 
 La entrega final reúne la versión GPU, la intro, los dos cielos, Vader, los rebeldes
-y los disparos. `escena-cinematica` conserva la rama de desarrollo;
+y los disparos, más el modo nave con combate y sus sonidos. `extras-modo-nave`
+conserva el desarrollo de vuelo; `18d74e9` guarda la entrega previa a estos extras.
+`escena-cinematica` conserva la rama de desarrollo inicial;
 `gpu-raytracing` conserva la migración GPU. Las etiquetas `gpu-estable-2026-09-30`
 y `respaldo-antes-rebeldes-b5e459e` permiten recuperar estados anteriores.
 
 El README enlaza el video final y contiene las capturas actuales, incluyendo
-los rebeldes y el disparo. Para reproducirlo desde GitHub, abrir
+los rebeldes, la estela del motor y el combate TIE. Para reproducirlo desde GitHub, abrir
 `renders/diorama-final.mp4` o descargarlo con **View raw / Download**.
 
 El docente revisó y autorizó el uso de raylib en esta implementación.
@@ -64,10 +70,12 @@ La geometría, materiales y algoritmos de raytracing pertenecen al proyecto.
 ## Música y video
 
 La intro dura aproximadamente 94.112 segundos: frase azul de 4 segundos y
-90.112 segundos del tema musical. Preparar los nueve WAV siguiendo
+90.112 segundos del tema musical. Preparar los catorce WAV siguiendo
 `assets/audio/README.md`: son archivos locales excluidos de Git, por lo que hay
 que copiarlos por separado si se usa otra computadora. Probar los efectos con
-`2`, `6`, `7`, `8`, el salto de intro y el cambio de cámaras; nunca deben superponerse.
+`2`, `6`, `7`, `8`, el salto de intro y el cambio de cámaras. Hay una sola pista
+principal; en el modo `9`, los disparos y explosiones se mezclan encima del
+ambiente o impulso. `M` silencia todo y salir del modo nave detiene sus efectos.
 
 El MP4 final contiene su propia pista de audio; se reproduce sin copiar los WAV.
 Se exportó con el renderer del proyecto y se codificó con FFmpeg, sincronizando
@@ -76,13 +84,15 @@ los 30 cuadros/s del archivo no garantizan ese rendimiento en vivo.
 
 ## Verificación de la entrega
 
-Comprobaciones del 30 de septiembre de 2026:
+Comprobaciones para la actualización del 1 de octubre de 2026:
 
 - `cargo fmt --check`: aprobado.
-- `cargo test --offline --locked`: 23 pruebas aprobadas.
+- `cargo test --offline --locked`: 29 pruebas aprobadas.
 - `cargo clippy --offline --locked --all-targets -- -D warnings`: aprobado.
 - `--validate-gpu`: 64 comparaciones CPU/GPU aprobadas.
-- `--audio-check`: nueve archivos, transiciones y bucles verificados.
+- `--validate-flight`: 34 comparaciones CPU/GPU de vuelo y combate aprobadas.
+- `--audio-check`: catorce archivos, transiciones, bucles y efectos simultáneos verificados.
+- Flechas izquierda/derecha corregidas en ambos modos nativos y en el visor web.
 - Los soldados y sus disparos fueron probados en vivo por el autor.
 
 Antes de presentar, probar los controles en la computadora que se utilizará y
