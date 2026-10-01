@@ -159,6 +159,7 @@ pub fn run(
             }
         }
     }
+    let mut display = crate::display::Display::new(&mut window, &thread);
     let audio = crate::audio::Audio::new();
     if let Err(error) = crate::intro::play(&mut window, &thread, &audio) {
         eprintln!("Intro: {error}");
@@ -247,6 +248,9 @@ pub fn run(
         let mut typed = Vec::new();
         while let Some(c) = window.get_char_pressed() {
             typed.push(c);
+        }
+        if window.is_key_pressed(KEY_J) || typed.iter().any(|c| c.eq_ignore_ascii_case(&'j')) {
+            display.enabled = !display.enabled;
         }
         let flight_button = Rectangle::new(20. + 8. * view_step, 59., view_step - 6., 28.);
         if window.is_key_pressed(KEY_NINE)
@@ -629,14 +633,7 @@ pub fn run(
         let muted = Color::new(166, 183, 198, 255);
         draw.clear_background(bg);
         if use_gpu && let Some(t) = gpu.as_ref().and_then(|g| g.texture()) {
-            draw.draw_texture_pro(
-                t,
-                Rectangle::new(0., 0., t.width() as f32, -(t.height() as f32)),
-                viewport,
-                Vector2::zero(),
-                0.,
-                Color::WHITE,
-            );
+            display.draw(&mut draw, t, viewport);
         } else if let Some(t) = &texture {
             draw.draw_texture_pro(
                 t,
@@ -701,14 +698,15 @@ pub fn run(
         };
         draw.draw_text(
             &format!(
-                "{} {state}  |  {}x{}  |  {:.0} ms  |  {} imagenes/s  |  UI {} FPS  |  Zoom {:.1}",
+                "{} {state}  |  {}x{}  |  {:.0} ms  |  {} imagenes/s  |  UI {} FPS  |  Zoom {:.1}  |  J Suavizado {}",
                 if use_gpu { "GPU" } else { "CPU" },
                 frame_size.0,
                 frame_size.1,
                 frame_ms,
                 presented_frames.len(),
                 ui_fps,
-                camera.distance
+                camera.distance,
+                if use_gpu && display.enabled && display.available() { "SI" } else { "NO" }
             ),
             20,
             height - 49,

@@ -75,7 +75,8 @@ nave detienen los efectos pendientes.
 - **9**: repetir el ascenso completo.
 - **Arrastre/flechas y rueda/+/-**: girar y acercar/alejar la cámara.
 - **R**: restablecer la cámara de vuelo.
-- **Q**: alternar Nítido 1200 y Fluido 800; **T**: alternar GPU y respaldo CPU.
+- **Q**: alternar 1200 → 1600 → 800 píxeles de ancho; **T**: alternar GPU y respaldo CPU.
+- **J**: activar/desactivar suavizado de bordes en GPU.
 - **S**: guardar `renders/vuelo-captura.png`.
 
 La escena de vuelo tiene su propia geometría y BVH. Los TIE se agregan al llegar
@@ -145,6 +146,7 @@ respaldo. Si el shader no compila, la aplicación vuelve automáticamente a CPU.
 | Activar/desactivar refracción | `G` |
 | Activar/desactivar skybox | `B` |
 | Nitidez durante el movimiento | `Q` o botón superior: Nítido 1200 → Fluido → Retina |
+| Suavizado de bordes en GPU | `J` (también disponible en modo nave) |
 | Alternar raytracer CPU / GPU | `T` (misma cámara y efectos) |
 | Vader y sable | `7` o botón Vader |
 | Soldados rebeldes | `8` o botón Rebeldes |
@@ -160,6 +162,13 @@ respaldo. Si el shader no compila, la aplicación vuelve automáticamente a CPU.
 | Salir | Escape o cerrar la ventana |
 
 ### Rendimiento en Mac M1
+
+La rama experimental `mejora-imagen-fluida` añade un pase de suavizado de bordes
+en GPU, activado inicialmente y comparable con `J`. En vuelo inicia a 1200 px;
+`Q` permite probar 1600 para más detalle u 800 para priorizar fluidez. El diorama mantiene sus modos de
+resolución y refinamiento anteriores. El filtro afecta sólo a la presentación de
+la ventana: las capturas `S`, los renders exportados y el video de entrega
+conservan la salida del raytracer. Ver [mediciones y límites](MEJORA_IMAGEN.md).
 
 El modo GPU ejecuta un fragment shader GLSL 330 mediante raylib/OpenGL 4.1.
 Cada píxel calcula sus propios rayos en paralelo. La geometría sigue siendo una

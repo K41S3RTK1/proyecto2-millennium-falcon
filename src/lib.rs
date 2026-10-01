@@ -2,6 +2,7 @@ pub mod audio;
 pub mod blaster;
 pub mod camera;
 pub mod combat;
+pub mod display;
 pub mod flight;
 pub mod flight_viewer;
 pub mod geometry;

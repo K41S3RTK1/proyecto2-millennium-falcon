@@ -15,6 +15,7 @@ pub fn run(
     audio: &Audio,
     prefer_gpu: bool,
 ) -> Result<usize, Box<dyn Error>> {
+    let mut display = crate::display::Display::new(window, thread);
     let mut scene = Scene::flight();
     let mut combat = crate::combat::Combat::default();
     let mut scene_mask = 0;
@@ -25,7 +26,7 @@ pub fn run(
     let mut yaw = 0.;
     let mut pitch = 0.;
     let mut zoom = 1.;
-    let mut sharp = true;
+    let mut quality_width = 1200;
     let mut waiting = true;
     let mut message = String::new();
     let mut message_until = Instant::now();
@@ -58,8 +59,15 @@ pub fn run(
         if pressed(KEY_M, 'm') {
             audio.event(Event::ToggleMute);
         }
+        if pressed(KEY_J, 'j') {
+            display.enabled = !display.enabled;
+        }
         if pressed(KEY_Q, 'q') {
-            sharp = !sharp;
+            quality_width = match quality_width {
+                1200 => 1600,
+                1600 => 800,
+                _ => 1200,
+            };
         }
         if pressed(KEY_T, 't') && gpu.is_some() {
             use_gpu = !use_gpu;
@@ -185,11 +193,7 @@ pub fn run(
         camera.yaw += yaw;
         camera.pitch += pitch;
         camera.distance *= zoom;
-        let w = if use_gpu {
-            if sharp { 1200 } else { 800 }
-        } else {
-            400
-        };
+        let w = if use_gpu { quality_width } else { 400 };
         let cfg = Settings {
             width: w,
             height: (w as f32 * viewport.height / viewport.width).max(1.) as usize,
@@ -245,14 +249,7 @@ pub fn run(
         draw.clear_background(Color::new(8, 15, 26, 255));
         if use_gpu {
             let t = gpu.as_ref().unwrap().texture().unwrap();
-            draw.draw_texture_pro(
-                t,
-                Rectangle::new(0., 0., t.width() as f32, -(t.height() as f32)),
-                viewport,
-                Vector2::zero(),
-                0.,
-                Color::WHITE,
-            );
+            display.draw(&mut draw, t, viewport);
         } else if let Some(t) = &cpu_texture {
             draw.draw_texture_pro(
                 t,
@@ -306,13 +303,13 @@ pub fn run(
             accent,
         );
         draw.draw_text(
-            "Arrastrar / flechas: girar   Rueda / +/-: zoom   R: camara   9: repetir ascenso",
+            &format!("Arrastrar / flechas: girar   Rueda / +/-: zoom   R: camara   9: ascenso   J Suavizado {}", if use_gpu && display.enabled && display.available() {"SI"} else {"NO"}),
             20,
             height - 60,
             16,
             Color::WHITE,
         );
-        draw.draw_text(&format!("1-8: diorama   M: audio {}   Q: {}   T: CPU/GPU   S: captura   |   {} {}x{}  {} FPS",if status.muted {"NO"}else{"SI"},if sharp {"Nitido"}else{"Fluido"},if use_gpu {"GPU"}else{"CPU"},cfg.width,cfg.height,fps),20,height-32,16,accent);
+        draw.draw_text(&format!("1-8: diorama   M: audio {}   Q: {}   T: CPU/GPU   S: captura   |   {} {}x{}  {} FPS",if status.muted {"NO"}else{"SI"},&format!("{}px",quality_width),if use_gpu {"GPU"}else{"CPU"},cfg.width,cfg.height,fps),20,height-32,16,accent);
         if combat.enabled {
             let alive = combat.hp.iter().filter(|&&hp| hp > 0).count();
             let label = if alive == 0 {
