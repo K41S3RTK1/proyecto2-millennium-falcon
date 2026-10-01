@@ -12,6 +12,9 @@ uniform vec3 eye, forward, right, up, saberBottom, saberTop;
 uniform float cameraScale;
 uniform vec3 boltA, boltB, muzzle;
 uniform float shotAge, muzzleFlash;
+uniform int flightEnabled;
+uniform float flightProgress, flightBoost, flightAge;
+uniform vec3 shipOffset;
 vec4 dataAt(int i) { return texelFetch(sceneData, ivec2(i % 1024, i / 1024), 0); }
 struct Hit { float t; int object; vec3 p; vec3 n; };
 struct Material { vec3 albedo; float spec; float shine; float trans; float refl; float ior; vec3 emission; int tex; };
@@ -98,8 +101,21 @@ vec3 surfaceColor(Material m,vec3 p,vec3 n) {
     else f=.9+.1*abs(sin(v*90.));
     return m.albedo*f;
 }
+vec3 flightSky(vec3 d) {
+    float t=clamp(flightProgress,0.,1.),p=t*t*(3.-2.*t);
+    float h=clamp((d.y+.3+p*.45)*1.4,0.,1.);
+    vec3 atmosphere=mix(vec3(.58,.34,.17),vec3(.025,.15,.32),h);
+    float u=(atan(d.z,d.x)/6.28318530718+.5)*1100.,v=acos(clamp(d.y,-1.,1.))/3.14159265359*550.;
+    float seed=noiseValue(ivec3(int(floor(u)),int(floor(v)),173));
+    float r=pow(fract(u)-.5,2.)+pow(fract(v)-.5,2.);
+    float star=seed>.995?pow(max(1.-r/.22,0.),2.)*(.8+(seed-.995)*240.):0.;
+    vec3 space=vec3(.002,.004,.012)+vec3(.72,.86,1.)*star;
+    t=clamp((flightProgress-.15)/.85,0.,1.);
+    return mix(atmosphere,space,t*t*(3.-2.*t));
+}
 vec3 sky(vec3 d) {
     if(skyEnabled==0) return vec3(.05,.06,.08);
+    if(flightEnabled!=0) return flightSky(d);
     vec3 a=abs(d); int face; vec2 uv;
     if(a.x>=a.y && a.x>=a.z) { face=d.x>=0.?0:1; uv=vec2(d.x>=0.?-d.z:d.z,d.y)/a.x; }
     else if(a.y>=a.z) { face=d.y>=0.?2:3; uv=vec2(d.x,d.y>=0.?-d.z:d.z)/a.y; }
@@ -145,16 +161,43 @@ vec3 blasterGlow(vec3 o,vec3 d,float limit) {
     float flash=boltSegment(o,d,limit,muzzle,muzzle+vec3(.06,0,0),.005,.045)*muzzleFlash;
     return vec3(1.,.028,.006)*(beam+flash)*min(1.-shotAge/.68,.8)*5.;
 }
+vec3 exhaustGlow(vec3 o,vec3 d,float limit) {
+    if(flightBoost<=0.) return vec3(0);
+    const float scale=1.65;
+    float length=(1.+11.*flightBoost)*scale;
+    vec3 inv=vec3(abs(d.x)<1e-9?0.:1./d.x,abs(d.y)<1e-9?0.:1./d.y,abs(d.z)<1e-9?0.:1./d.z);
+    float start,end;
+    if(!interval(o,d,inv,vec3(-3.35,.7,2.5)*scale,vec3(3.35*scale,2.5*scale,4.36*scale+length),limit,false,start,end)) return vec3(0);
+    start=max(start,0.);float step=(end-start)/12.;
+    if(step<=0.) return vec3(0);
+    vec3 color=vec3(0);
+    for(int i=0;i<12;i++) {
+        vec3 p=o+d*(start+(float(i)+.5)*step);
+        float x=p.x/scale,nozzle=sqrt(max(4.25*4.25-x*x,0.))*scale+.10*scale;
+        float u=(p.z-nozzle)/length;
+        if(u<0. || u>=1.) continue;
+        float width=3.35*scale*(1.-.32*u),edge=max(1.-pow(p.x/width,4.),0.);
+        float height=(.12+.43*u)*scale,dy=(p.y-1.61*scale)/height;
+        float pulse=.83+.17*sin(p.z*5.-flightAge*18.+p.x*2.);
+        float density=exp(-dy*dy)*edge*pow(1.-u,2.)*pulse*flightBoost;
+        color+=vec3(.08,.8,2.8)*(density*step*1.4)+vec3(.7,1.2,1.5)*(density*exp(-dy*dy*4.)*step*.7);
+    }
+    return color;
+}
+vec3 effects(vec3 o,vec3 d,float limit) {
+    return flightEnabled!=0?exhaustGlow(o,d,limit):saberGlow(o,d,limit)+blasterGlow(o,d,limit);
+}
 struct Task { vec3 o; vec3 d; vec3 throughput; float weight; int depth; };
 vec3 traceRay(vec3 origin, vec3 direction) {
+    origin-=shipOffset;
     Task tasks[8]; int count=1;
     tasks[0]=Task(origin,direction,vec3(1),1.,0);
     vec3 result=vec3(0); int maxDepth=quality==0?3:6;
     // Un árbol binario de profundidad 6 contiene como máximo 127 tareas.
     for(int step=0;step<127 && count>0;step++) {
         Task task=tasks[--count]; Hit hit;
-        if(!intersectScene(task.o,task.d,1e30,hit)) { result+=task.throughput*(sky(task.d)+saberGlow(task.o,task.d,1e30)+blasterGlow(task.o,task.d,1e30)); continue; }
-        result+=task.throughput*(saberGlow(task.o,task.d,hit.t)+blasterGlow(task.o,task.d,hit.t));
+        if(!intersectScene(task.o,task.d,1e30,hit)) { result+=task.throughput*(sky(task.d)+effects(task.o,task.d,1e30)); continue; }
+        result+=task.throughput*(effects(task.o,task.d,hit.t));
         int b=blockBase+hit.object*3;
         Material mat=material(int(dataAt(b).w)); vec3 tint=dataAt(b+2).xyz;
         bool front=dot(task.d,hit.n)<0.; vec3 n=front?hit.n:-hit.n;
@@ -189,7 +232,7 @@ vec3 traceRay(vec3 origin, vec3 direction) {
         float transmitted=transparent*(1.-(reflections!=0?fresnel:0.));
         vec3 refracted=refract(task.d,n,front?1./mat.ior:mat.ior);
         if(dot(refracted,refracted)<.5) { reflected+=transmitted; transmitted=0.; }
-        result+=task.throughput*((surface*diffuse+specular)*max(1.-reflected-transmitted,0.)+mat.emission*tint);
+        result+=task.throughput*((surface*diffuse+specular)*max(1.-reflected-transmitted,0.)+mat.emission*tint*(1.+(flightEnabled!=0 && hit.p.z>2.5*1.65?flightBoost*2.:0.)));
         if(reflected>0.) {
             vec3 d=normalize(reflect(task.d,n)),throughput=task.throughput*reflected;
             if(task.depth<maxDepth && task.weight*reflected>.012)

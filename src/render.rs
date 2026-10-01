@@ -20,6 +20,7 @@ pub struct Settings {
     pub skybox: bool,
     pub space: bool,
     pub shot: crate::blaster::Shot,
+    pub flight: crate::flight::Flight,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -32,6 +33,7 @@ impl Default for Settings {
             skybox: true,
             space: false,
             shot: crate::blaster::Shot::default(),
+            flight: crate::flight::Flight::default(),
         }
     }
 }
@@ -85,8 +87,25 @@ pub fn saber_glow(ray: Ray, limit: f32) -> V {
     V::new(1., 0.003, 0.001) * glow
 }
 pub fn trace(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -> V {
+    let local = Ray {
+        o: ray.o - cfg.flight.offset(),
+        d: ray.d,
+    };
+    trace_local(scene, local, cfg, depth, weight)
+}
+fn trace_local(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -> V {
+    let glow = |limit| {
+        if cfg.flight.active {
+            cfg.flight.glow(ray, limit)
+        } else {
+            saber_glow(ray, limit) + cfg.shot.glow(ray, limit)
+        }
+    };
+
     let sky = |d| {
-        if cfg.skybox {
+        if cfg.skybox && cfg.flight.active {
+            crate::flight::sky(d, cfg.flight.progress)
+        } else if cfg.skybox {
             if cfg.space {
                 scene.space.sample(d)
             } else {
@@ -97,7 +116,7 @@ pub fn trace(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -> 
         }
     };
     let Some(hit) = scene.hit(ray, f32::INFINITY) else {
-        return sky(ray.d) + saber_glow(ray, f32::INFINITY) + cfg.shot.glow(ray, f32::INFINITY);
+        return sky(ray.d) + glow(f32::INFINITY);
     };
     let block = scene.blocks[hit.object];
     let mat = &scene.materials[block.material];
@@ -183,13 +202,18 @@ pub fn trace(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -> 
     let local = (1. - reflected - transmitted).max(0.);
     let mut result = (surface.hadamard(diffuse) + specular) * local
         + mat.emission.hadamard(block.tint)
-        + saber_glow(ray, hit.t)
-        + cfg.shot.glow(ray, hit.t);
+            * (1.
+                + if cfg.flight.active && hit.point.z > 2.5 * crate::flight::SCALE {
+                    cfg.flight.boost() * 2.
+                } else {
+                    0.
+                })
+        + glow(hit.t);
     let max_depth = if cfg.quality == 0 { 3 } else { 6 };
     if reflected > 0. {
         let d = ray.d.reflect(n);
         let color = if depth < max_depth && weight * reflected > 0.012 {
-            trace(
+            trace_local(
                 scene,
                 Ray::new(hit.point + n * 0.002, d),
                 cfg,
@@ -205,7 +229,7 @@ pub fn trace(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -> 
         && let Some(d) = refracted
     {
         let color = if depth < max_depth && weight * transmitted > 0.012 {
-            trace(
+            trace_local(
                 scene,
                 Ray::new(hit.point - n * 0.002, d),
                 cfg,

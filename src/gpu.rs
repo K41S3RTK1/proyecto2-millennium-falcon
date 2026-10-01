@@ -170,6 +170,7 @@ impl Renderer {
             ("forward", forward),
             ("right", right),
             ("up", up),
+            ("shipOffset", cfg.flight.offset()),
         ] {
             let loc = self.shader.get_shader_location(name);
             self.shader.set_shader_value(loc, vector(value));
@@ -180,6 +181,7 @@ impl Renderer {
             ("refractions", i32::from(cfg.refractions)),
             ("skyEnabled", i32::from(cfg.skybox)),
             ("spaceMode", i32::from(cfg.space)),
+            ("flightEnabled", i32::from(cfg.flight.active)),
             (
                 "skySize",
                 if cfg.space {
@@ -197,7 +199,13 @@ impl Renderer {
             let loc = self.shader.get_shader_location(name);
             self.shader.set_shader_value(loc, vector(v));
         }
-        for (name, v) in [("shotAge", cfg.shot.age), ("muzzleFlash", flash)] {
+        for (name, v) in [
+            ("shotAge", cfg.shot.age),
+            ("muzzleFlash", flash),
+            ("flightProgress", cfg.flight.progress),
+            ("flightBoost", cfg.flight.boost()),
+            ("flightAge", cfg.flight.boost_age),
+        ] {
             let loc = self.shader.get_shader_location(name);
             self.shader.set_shader_value(loc, v);
         }
@@ -312,6 +320,7 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
                 refractions: variant != 3,
                 skybox: variant != 4,
                 space: variant == 5,
+                flight: crate::flight::Flight::default(),
                 shot: crate::blaster::Shot {
                     age: if variant >= 6 {
                         if variant == 6 { 0.03 } else { 0.19 }
@@ -366,6 +375,71 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
         Err("La comparación CPU/GPU excedió la tolerancia visual".into())
     } else {
         println!("Validación CPU/GPU: 64 comparaciones aprobadas");
+        Ok(())
+    }
+}
+
+/// Verifica ascenso, espacio y estela desde delante/detrás, con ambas calidades.
+pub fn validate_flight() -> Result<(), Box<dyn Error>> {
+    let scene = Scene::flight();
+    let (mut window, thread) = raylib::init()
+        .size(640, 400)
+        .hidden()
+        .title("Validacion modo nave")
+        .build();
+    let mut renderer = Renderer::new(&mut window, &thread, &scene)?;
+    let mut failed = false;
+    for (progress, age) in [
+        (0., -1.),
+        (0.5, -1.),
+        (1., -1.),
+        (1., 1.),
+        (1., 10.),
+        (1., 19.3),
+    ] {
+        for yaw in [128., 38.] {
+            for quality in [0, 1] {
+                let flight = crate::flight::Flight {
+                    active: true,
+                    progress,
+                    boost_age: age,
+                    ..Default::default()
+                };
+                let cfg = Settings {
+                    width: 320,
+                    height: 200,
+                    quality,
+                    space: true,
+                    flight,
+                    ..Settings::default()
+                };
+                let mut camera = flight.camera();
+                camera.yaw = yaw;
+                renderer.render(&mut window, &thread, camera, cfg)?;
+                let gpu = renderer.pixels()?;
+                let cpu = crate::render::render(&scene, camera, cfg).pixels;
+                let mut error = 0u64;
+                let mut large = 0;
+                for (a, b) in cpu.chunks_exact(4).zip(gpu.chunks_exact(4)) {
+                    let delta: [u8; 3] = std::array::from_fn(|i| a[i].abs_diff(b[i]));
+                    error += delta.iter().map(|&v| v as u64).sum::<u64>();
+                    if delta.iter().any(|&v| v > 32) {
+                        large += 1;
+                    }
+                }
+                let mean = error as f64 / (cfg.width * cfg.height * 3) as f64;
+                let outliers = large as f64 * 100. / (cfg.width * cfg.height) as f64;
+                println!(
+                    "Vuelo p{progress} impulso{age} yaw{yaw} q{quality}: error {mean:.4}/255; atipicos {outliers:.3}%"
+                );
+                failed |= mean > 1. || outliers > 0.5;
+            }
+        }
+    }
+    if failed {
+        Err("El modo nave excedió la tolerancia CPU/GPU".into())
+    } else {
+        println!("Modo nave: 24 comparaciones CPU/GPU aprobadas");
         Ok(())
     }
 }

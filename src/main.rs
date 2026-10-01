@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|s| s == "--help") {
         println!(
-            "Millennium Falcon · Raytracing Rust + ventana raylib\n\ncargo run --release                 Ventana nativa (recomendado para Mac M1)\ncargo run --release -- --render     Guarda renders/falcon.png\nOpciones: --width 1100 --height 720 --quality 2 --yaw 38 --pitch 29 --distance 23 --output ruta.png\n--space     Selecciona el cielo espacial\n--audio-check Verifica los nueve audios y sus transiciones\n--intro-frame 45 Exporta un cuadro de la intro (--output ruta.png)\n--cpu       Inicia con raytracing CPU (T alterna CPU/GPU)\n--gpu-check Exporta un cuadro GPU; necesita contexto gráfico\n--validate-gpu Compara 64 imágenes CPU/GPU\n--benchmark-gpu Mide ocho vistas GPU, con lectura sincronizada\n--adaptive  Inicia con resolucion adaptativa (Q cambia el modo)\n--benchmark-sharp Compara nitidez fija a 1200 y 2400 px\n--demo      Abre la ventana con recorrido automatico\n--web       Visor web opcional y grabacion de video\n--benchmark Mide renderizado interactivo sin abrir ventana\n--port 7878  Puerto del visor web\n--tour 120   Exporta 120 imágenes para video\n--skybox     Exporta las seis caras del cubemap\n--no-reflections --no-refractions --no-skybox  Comparaciones"
+            "Millennium Falcon · Raytracing Rust + ventana raylib\n\ncargo run --release                 Ventana nativa (recomendado para Mac M1)\ncargo run --release -- --render     Guarda renders/falcon.png\nOpciones: --width 1100 --height 720 --quality 2 --yaw 38 --pitch 29 --distance 23 --output ruta.png\n--flight-preview --flight-progress 1 --boost-age 1 Exporta el modo nave\n--validate-flight Compara el modo nave CPU/GPU\n--space     Selecciona el cielo espacial\n--audio-check Verifica los doce audios y sus transiciones\n--intro-frame 45 Exporta un cuadro de la intro (--output ruta.png)\n--cpu       Inicia con raytracing CPU (T alterna CPU/GPU)\n--gpu-check Exporta un cuadro GPU; necesita contexto gráfico\n--validate-gpu Compara 64 imágenes CPU/GPU\n--benchmark-gpu Mide ocho vistas GPU, con lectura sincronizada\n--adaptive  Inicia con resolucion adaptativa (Q cambia el modo)\n--benchmark-sharp Compara nitidez fija a 1200 y 2400 px\n--demo      Abre la ventana con recorrido automatico\n--web       Visor web opcional y grabacion de video\n--benchmark Mide renderizado interactivo sin abrir ventana\n--port 7878  Puerto del visor web\n--tour 120   Exporta 120 imágenes para video\n--skybox     Exporta las seis caras del cubemap\n--no-reflections --no-refractions --no-skybox  Comparaciones"
         );
         return Ok(());
     }
@@ -42,8 +42,25 @@ fn main() -> Result<(), Box<dyn Error>> {
     if args.iter().any(|v| v == "--audio-check") {
         return falcon_diorama::audio::check();
     }
+    let flight_preview = args.iter().any(|s| s == "--flight-preview");
     let mut camera = Camera::default();
     let mut settings = Settings::default();
+    if flight_preview {
+        settings.flight.active = true;
+        settings.flight.progress = value(&args, "--flight-progress")
+            .unwrap_or_else(|| "1".into())
+            .parse()?;
+        settings.flight.boost_age = value(&args, "--boost-age")
+            .unwrap_or_else(|| "-1".into())
+            .parse()?;
+        if !settings.flight.progress.is_finite()
+            || !(0.0..=1.0).contains(&settings.flight.progress)
+            || !settings.flight.boost_age.is_finite()
+        {
+            return Err("Estado de vuelo inválido".into());
+        }
+        camera = settings.flight.camera();
+    }
     if let Some(v) = value(&args, "--shot-age") {
         settings.shot.age = v.parse()?;
         if !settings.shot.age.is_finite() {
@@ -93,11 +110,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     {
         return Err("Dimensiones o cámara fuera de rango".into());
     }
-    settings.space = args.iter().any(|v| v == "--space");
+    settings.space = flight_preview || args.iter().any(|v| v == "--space");
     settings.reflections = !args.iter().any(|v| v == "--no-reflections");
     settings.refractions = !args.iter().any(|v| v == "--no-refractions");
     settings.skybox = !args.iter().any(|v| v == "--no-skybox");
-    let scene = Scene::new();
+    let scene = if flight_preview {
+        Scene::flight()
+    } else {
+        Scene::new()
+    };
     println!(
         "{} bloques · {} materiales · BVH · Rust estándar",
         scene.blocks.len(),
@@ -115,12 +136,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             png::save(format!("renders/skybox-{i}.png"), size, size, &pixels)?;
         }
     }
-    if args.iter().any(|v| v == "--validate-gpu") {
+    if args.iter().any(|v| v == "--validate-flight") {
+        falcon_diorama::gpu::validate_flight()?;
+    } else if args.iter().any(|v| v == "--validate-gpu") {
         falcon_diorama::gpu::validate(&scene)?;
-    } else if args
-        .iter()
-        .any(|v| v == "--gpu-check" || v == "--benchmark-gpu")
-    {
+    } else if args.iter().any(|v| {
+        v == "--gpu-check"
+            || v == "--benchmark-gpu"
+            || (flight_preview && !args.iter().any(|s| s == "--render"))
+    }) {
         falcon_diorama::gpu::check(
             &scene,
             camera,

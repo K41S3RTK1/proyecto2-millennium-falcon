@@ -74,6 +74,37 @@ impl Scene {
             ],
         }
     }
+    /// Escena independiente: sólo la nave, ampliada, con rampa y tren recogidos.
+    pub fn flight() -> Self {
+        let mut b = Builder { blocks: Vec::new() };
+        b.falcon_model(true);
+        for block in &mut b.blocks {
+            block.bounds.lo = block.bounds.lo * crate::flight::SCALE;
+            block.bounds.hi = block.bounds.hi * crate::flight::SCALE;
+        }
+        let bvh = Bvh::build(&b.blocks);
+        Self {
+            blocks: b.blocks,
+            bvh,
+            materials: material::materials(),
+            sky: Skybox::new(32),
+            space: Skybox::space(32),
+            lights: vec![
+                Light {
+                    position: V::new(-15., 25., -13.),
+                    color: V::new(0.9, 0.95, 1.),
+                    intensity: 1.65,
+                    radius: 0.,
+                },
+                Light {
+                    position: V::new(12., 15., 15.),
+                    color: V::new(0.4, 0.65, 1.),
+                    intensity: 1.25,
+                    radius: 0.,
+                },
+            ],
+        }
+    }
     pub fn hit(&self, r: Ray, max: f32) -> Option<Hit> {
         self.bvh.hit(&self.blocks, r, max)
     }
@@ -804,6 +835,9 @@ impl Builder {
         }
     }
     fn falcon(&mut self) {
+        self.falcon_model(false);
+    }
+    fn falcon_model(&mut self, airborne: bool) {
         let s = 0.22;
         // Casco circular en capas. Cubos de superficie conservan la silueta voxel.
         for x in -20_i32..=20 {
@@ -870,20 +904,22 @@ impl Builder {
                 }
             }
         }
-        // Tren de aterrizaje: soportes y zapatas.
-        for (x, z) in [(-2.3, 1.6), (2.3, 1.6), (-1.6, -3.4), (1.6, -3.4), (0., 0.)] {
-            self.block(
-                V::new(x, 0.55, z),
-                V::new(0.22, 1.1, 0.24),
-                DARK,
-                V::splat(1.),
-            );
-            self.block(
-                V::new(x, 0.14, z),
-                V::new(0.7, 0.24, 0.65),
-                HULL,
-                V::splat(0.85),
-            );
+        if !airborne {
+            // Tren de aterrizaje: soportes y zapatas.
+            for (x, z) in [(-2.3, 1.6), (2.3, 1.6), (-1.6, -3.4), (1.6, -3.4), (0., 0.)] {
+                self.block(
+                    V::new(x, 0.55, z),
+                    V::new(0.22, 1.1, 0.24),
+                    DARK,
+                    V::splat(1.),
+                );
+                self.block(
+                    V::new(x, 0.14, z),
+                    V::new(0.7, 0.24, 0.65),
+                    HULL,
+                    V::splat(0.85),
+                );
+            }
         }
         // Seis ventiladores en la cubierta posterior, discretizados en cubos.
         for (cx, cz) in [
@@ -1053,15 +1089,17 @@ impl Builder {
                 V::splat(0.6),
             );
         }
-        // Rampa lateral escalonada.
-        for i in 0..7 {
-            let t = i as f32;
-            self.block(
-                V::new(4.1 + t * 0.22, 1.25 - t * 0.17, 0.4),
-                V::new(0.26, 0.15, 0.85),
-                DARK,
-                V::splat(1.),
-            );
+        if !airborne {
+            // Rampa lateral escalonada.
+            for i in 0..7 {
+                let t = i as f32;
+                self.block(
+                    V::new(4.1 + t * 0.22, 1.25 - t * 0.17, 0.4),
+                    V::new(0.26, 0.15, 0.85),
+                    DARK,
+                    V::splat(1.),
+                );
+            }
         }
     }
 }

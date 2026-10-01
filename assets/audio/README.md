@@ -1,6 +1,6 @@
 # Audio local
 
-Copiar los nueve WAV en esta carpeta, conservando exactamente estos nombres:
+Copiar los doce WAV en esta carpeta, conservando exactamente estos nombres:
 
 | Archivo | Duración de la grabación local | Uso |
 |---|---:|---|
@@ -13,8 +13,13 @@ Copiar los nueve WAV en esta carpeta, conservando exactamente estos nombres:
 | `MF FX.wav` | 8.192 s | Vista 2, una vez antes de cantina |
 | `BLASTER FX.wav` | 2.048 s | Vista 8, una vez antes de cantina |
 | `DISPARO FX.wav` | 0.683 s | Cada disparo manual en vista 8 |
+| `Despegue.wav` | 49.835 s | Ascenso del modo 9, una vez y completo |
+| `ambientefalcon.wav` | 97.621 s | Ambiente espacial del modo 9, en bucle |
+| `Impulso.wav` | 19.797 s | E en el espacio, una vez; después regresa el ambiente |
 
-Las grabaciones locales son WAV PCM, 48 kHz, estéreo, 24 bits. Raylib lee su
+Las grabaciones originales son WAV PCM, 48 kHz, estéreo, 24 bits.
+Los tres archivos del modo nave también son WAV a 48 kHz; despegue e impulso
+son mono y el ambiente espacial es estéreo. Raylib lee su
 duración real; no se recortan ni convierten. Repetir una tecla de efecto reinicia
 su secuencia. Nunca se reproducen dos pistas simultáneamente. M silencia todo
 sin alterar el avance; I detiene la pista actual y repite la intro desde su fase
@@ -24,3 +29,8 @@ Los WAV locales están excluidos de Git. Al descargar el repositorio en otro
 equipo es necesario copiarlos por separado. Sin archivos, la aplicación sigue
 funcionando en silencio. `cargo run --release --offline -- --audio-check` permite
 verificar carga, transiciones y bucles sin reproducir sonido audible.
+
+El reloj del despegue gobierna el ascenso. E se habilita al terminarlo; cada
+pulsación interrumpe el ambiente y reinicia el impulso. Salir con 1–8 cancela
+la pista de vuelo y activa el audio de la vista elegida. 9 reinicia todo el
+ascenso. Los audios se conservan completos y sin conversiones.

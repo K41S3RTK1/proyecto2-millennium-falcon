@@ -10,3 +10,6 @@
 /assets/audio/*.ogg
 /assets/audio/*.mp3
 /assets/audio/*.wav
+
+# Captura local del modo nave experimental
+/renders/vuelo-captura.png

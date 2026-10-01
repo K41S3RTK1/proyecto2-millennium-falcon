@@ -34,6 +34,50 @@ Si GitHub no muestra el reproductor, descargar el MP4 con **View raw / Download*
 El [recorrido inicial sin las últimas mejoras](renders/diorama.webm) se conserva
 como referencia. Para la presentación en vivo, consultar [ENTREGA.md](ENTREGA.md).
 
+## Extra experimental: modo nave
+
+Esta rama, `extras-modo-nave`, parte de la entrega `18d74e9`. La versión entregada
+permanece en `main`; el video anterior corresponde a esa entrega.
+
+**9 / Nave** abre una escena independiente con sólo el Halcón a escala 1.65,
+con rampa y tren recogidos. Asciende durante los **49.835 s** de `Despegue.wav`:
+la cámara acompaña la nave y la atmósfera se oscurece hasta convertirse en espacio.
+Al terminar comienza `ambientefalcon.wav` en bucle (**97.621 s** por vuelta).
+
+En el espacio, **E** o **Impulso** inicia una estela celeste desde el arco del motor
+trasero y reproduce `Impulso.wav` completo (**19.797 s**). Pulsar otra vez reinicia
+el impulso. Al terminar se desvanece la estela y vuelve la música espacial.
+Durante el ascenso el impulso permanece deshabilitado. Sólo se reproduce una
+pista a la vez; **M** conserva su estado al entrar y salir de este modo.
+
+![Halcón en modo nave con la estela activa](renders/modo-nave.png)
+
+- **1–8**: regresar a la vista correspondiente del diorama.
+- **9**: repetir el ascenso completo.
+- **Arrastre/flechas y rueda/+/-**: girar y acercar/alejar la cámara.
+- **R**: restablecer la cámara de vuelo.
+- **Q**: alternar Nítido 1200 y Fluido 800; **T**: alternar GPU y respaldo CPU.
+- **S**: guardar `renders/vuelo-captura.png`.
+
+La escena de vuelo tiene su propia geometría y BVH. La traslación se aplica a los
+rayos sin reconstruir los bloques por cuadro. La estela es una lámina emisiva
+integrada a lo largo del rayo, recortada por el primer impacto; CPU y GPU calculan
+el mismo efecto. No pretende simular dinámica de fluidos. Los modos gráficos y
+las dimensiones del diorama original se conservan al regresar.
+
+Los tres WAV nuevos se colocan en `assets/audio/` y siguen excluidos de Git.
+Se pueden verificar imágenes y audio sin interactuar con la ventana:
+
+```sh
+cargo run --release --offline -- --flight-preview --flight-progress 1 --boost-age 1 --output renders/vuelo-captura.png
+cargo run --release --offline -- --validate-flight
+cargo run --release --offline -- --audio-check
+```
+
+La revisión de esta rama incluye 26 pruebas, 24 comparaciones CPU/GPU del vuelo,
+las 64 del diorama y los doce audios. El video final de la entrega no se reemplaza
+por estas pruebas experimentales.
+
 ## Ejecutar
 
 Requiere Rust y Cargo con soporte para la edición 2024. En macOS también se
@@ -72,6 +116,8 @@ respaldo. Si el shader no compila, la aplicación vuelve automáticamente a CPU.
 | Alternar raytracer CPU / GPU | `T` (misma cámara y efectos) |
 | Vader y sable | `7` o botón Vader |
 | Soldados rebeldes | `8` o botón Rebeldes |
+| Modo nave experimental | `9` o botón Nave |
+| Impulso, únicamente en el espacio del modo nave | `E` o botón Impulso |
 | Disparo manual en la vista de rebeldes | `.` / decimal numérico o botón Disparar |
 | Cambiar Tatooine / espacio | `C` |
 | Repetir introducción | `I` |

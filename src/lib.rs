@@ -1,6 +1,8 @@
 pub mod audio;
 pub mod blaster;
 pub mod camera;
+pub mod flight;
+pub mod flight_viewer;
 pub mod geometry;
 pub mod gpu;
 pub mod intro;

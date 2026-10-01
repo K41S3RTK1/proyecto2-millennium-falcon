@@ -18,9 +18,12 @@ pub enum Track {
     Falcon,
     Blaster,
     Shot,
+    Takeoff,
+    FlightAmbient,
+    Boost,
 }
 impl Track {
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 12] = [
         Self::Theme,
         Self::Cantina,
         Self::Vader,
@@ -30,6 +33,9 @@ impl Track {
         Self::Falcon,
         Self::Blaster,
         Self::Shot,
+        Self::Takeoff,
+        Self::FlightAmbient,
+        Self::Boost,
     ];
     pub fn filename(self) -> &'static str {
         match self {
@@ -42,13 +48,19 @@ impl Track {
             Self::Falcon => "MF FX.wav",
             Self::Blaster => "BLASTER FX.wav",
             Self::Shot => "DISPARO FX.wav",
+            Self::Takeoff => "Despegue.wav",
+            Self::FlightAmbient => "ambientefalcon.wav",
+            Self::Boost => "Impulso.wav",
         }
     }
     pub fn looping(self) -> bool {
-        matches!(self, Self::Cantina | Self::Vader)
+        matches!(self, Self::Cantina | Self::Vader | Self::FlightAmbient)
     }
     fn volume(self) -> f32 {
-        if matches!(self, Self::Theme | Self::Cantina | Self::Vader) {
+        if matches!(
+            self,
+            Self::Theme | Self::Cantina | Self::Vader | Self::FlightAmbient
+        ) {
             0.45
         } else {
             0.65
@@ -63,6 +75,7 @@ pub enum Event {
     FinishIntro,
     View(usize),
     Fire,
+    Boost,
     Finished(Track),
     ToggleMute,
     Stop,
@@ -72,6 +85,7 @@ pub struct Sequence {
     pub track: Option<Track>,
     pub muted: bool,
     pub theme_finished: bool,
+    pub flight_ready: bool,
     in_intro: bool,
     view: usize,
     revision: u64,
@@ -87,6 +101,7 @@ impl Sequence {
         match event {
             Event::BeginIntro => {
                 self.in_intro = true;
+                self.flight_ready = false;
                 self.theme_finished = false;
                 self.select(None, true);
             }
@@ -103,7 +118,9 @@ impl Sequence {
             }
             Event::View(view) if !self.in_intro => {
                 self.view = view;
+                self.flight_ready = false;
                 let track = match view {
+                    8 => Track::Takeoff,
                     7 => Track::Blaster,
                     6 => Track::Saber,
                     5 => Track::Droid,
@@ -112,8 +129,18 @@ impl Sequence {
                 };
                 self.select(Some(track), track != Track::Cantina);
             }
+            Event::Boost if !self.in_intro && self.view == 8 && self.flight_ready => {
+                self.select(Some(Track::Boost), true)
+            }
             Event::Fire if !self.in_intro && self.view == 7 => self.select(Some(Track::Shot), true),
             Event::Finished(track) if self.track == Some(track) => match track {
+                Track::Takeoff if !self.in_intro && self.view == 8 => {
+                    self.flight_ready = true;
+                    self.select(Some(Track::FlightAmbient), false);
+                }
+                Track::Boost if !self.in_intro && self.view == 8 => {
+                    self.select(Some(Track::FlightAmbient), false)
+                }
                 Track::Theme => {
                     self.theme_finished = true;
                     self.select(None, false);
@@ -138,8 +165,9 @@ impl Sequence {
 pub struct Status {
     pub track: Option<Track>,
     pub position: f32,
-    pub durations: [f32; 9],
+    pub durations: [f32; 12],
     pub theme_finished: bool,
+    pub flight_ready: bool,
     pub muted: bool,
     pub available: bool,
 }
@@ -149,9 +177,21 @@ impl Default for Status {
             track: None,
             position: 0.,
             durations: [
-                90.112, 90.112, 54.6133, 4.096, 13.6533, 3.4133, 8.192, 2.048, 0.682667,
+                90.112,
+                90.112,
+                54.6133,
+                4.096,
+                13.6533,
+                3.4133,
+                8.192,
+                2.048,
+                0.682667,
+                crate::flight::TAKEOFF_SECONDS,
+                97.621_33,
+                crate::flight::BOOST_SECONDS,
             ],
             theme_finished: false,
+            flight_ready: false,
             muted: false,
             available: false,
         }
@@ -283,6 +323,7 @@ impl Audio {
                     position,
                     durations,
                     theme_finished: state.theme_finished,
+                    flight_ready: state.flight_ready,
                     muted: state.muted,
                     available,
                 };
@@ -325,7 +366,7 @@ impl Drop for Audio {
 pub fn check() -> Result<(), Box<dyn std::error::Error>> {
     let audio = Audio::new();
     if !audio.status().available {
-        return Err("No se cargaron los nueve archivos de audio".into());
+        return Err("No se cargaron los doce archivos de audio".into());
     }
     for track in Track::ALL {
         println!(
@@ -410,8 +451,25 @@ pub fn check() -> Result<(), Box<dyn std::error::Error>> {
             return Err("No se reinició el disparo manual".into());
         }
     }
+    audio.event(Event::View(8));
+    wait(Some(Track::Takeoff))?;
+    audio.event(Event::Boost);
+    wait(Some(Track::Takeoff))?;
+    audio.sender.send(Command::SeekNearEnd)?;
+    wait(Some(Track::FlightAmbient))?;
+    audio.sender.send(Command::SeekNearEnd)?;
+    thread::sleep(Duration::from_millis(800));
+    if audio.status().track != Some(Track::FlightAmbient) || audio.status().position > 1.5 {
+        return Err("La música espacial no volvió al inicio".into());
+    }
+    audio.event(Event::Boost);
+    wait(Some(Track::Boost))?;
+    audio.sender.send(Command::SeekNearEnd)?;
+    wait(Some(Track::FlightAmbient))?;
+    audio.event(Event::View(0));
+    wait(Some(Track::Cantina))?;
     audio.event(Event::BeginIntro);
     wait(None)?;
-    println!("Audio: nueve archivos, secuencias y bucles verificados sin superposición.");
+    println!("Audio: doce archivos, secuencias y bucles verificados sin superposición.");
     Ok(())
 }

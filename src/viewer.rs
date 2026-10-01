@@ -17,7 +17,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-const VIEWS: [&str; 8] = [
+const VIEWS: [&str; 9] = [
     "1  Principal",
     "2  Motor",
     "3  Cabina",
@@ -26,6 +26,7 @@ const VIEWS: [&str; 8] = [
     "6  Droide",
     "7  Vader",
     "8 Rebeldes",
+    "9 Nave",
 ];
 pub(crate) fn preset(index: usize) -> Camera {
     match index {
@@ -240,9 +241,42 @@ pub fn run(
         let inside = mouse.y >= viewport.y && mouse.y < viewport.y + viewport.height;
         let click = window.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT);
         let mut changed = false;
-        let view_step = ((width as f32 - 164.) / 8.).min(116.);
+        let view_step = ((width as f32 - 164.) / 9.).min(116.);
         let fire_button = Rectangle::new(width as f32 - 218., 112., 198., 32.);
         let quality_button = Rectangle::new(width as f32 - 254., 15., 234., 29.);
+        let mut typed = Vec::new();
+        while let Some(c) = window.get_char_pressed() {
+            typed.push(c);
+        }
+        let flight_button = Rectangle::new(20. + 8. * view_step, 59., view_step - 6., 28.);
+        if window.is_key_pressed(KEY_NINE)
+            || typed.contains(&'9')
+            || (click && flight_button.check_collision_point_rec(mouse))
+        {
+            generation += 1;
+            cancel.store(generation, Ordering::Relaxed);
+            let destination = match crate::flight_viewer::run(&mut window, &thread, &audio, use_gpu)
+            {
+                Ok(view) => view,
+                Err(e) => {
+                    notice = format!("Modo nave: {e}");
+                    notice_until = Instant::now() + Duration::from_secs(8);
+                    selected_view
+                }
+            };
+            audio.event(crate::audio::Event::View(destination));
+            selected_view = destination;
+            camera = preset(destination);
+            orbit = false;
+            shot_started = None;
+            settings.shot = crate::blaster::Shot::default();
+            dirty = true;
+            refined_level = 0;
+            last_input = Instant::now();
+            fade_in = Instant::now();
+            presented_frames.clear();
+            continue;
+        }
         if window.is_key_pressed(KEY_Q)
             || (click && quality_button.check_collision_point_rec(mouse))
         {
@@ -379,7 +413,7 @@ pub fn run(
         // Leer caracteres respeta la distribución del teclado (español, inglés y Shift).
         // Los eventos también capturan pulsaciones breves entre dos cuadros.
         let mut zoom_steps = 0;
-        while let Some(character) = window.get_char_pressed() {
+        for character in typed {
             zoom_steps += match character {
                 '+' | '=' => -1,
                 '-' | '−' => 1,
