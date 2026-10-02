@@ -422,6 +422,11 @@ apariencia luminosa; no se simula iluminación global por emisión.
 
 ### Comparación de refracción
 
+Las tres barras celestes son geometría emisiva dentro del depósito. El vidrio
+refracta los rayos que permiten verlas; las barras no son reflejos de los postes.
+Al girar, observar su posición aparente a través de distintas caras. `G` desactiva
+la transmisión refractiva y vuelve opaco el vidrio: no elimina las barras.
+
 | Activada | Desactivada |
 |---|---|
 | ![Vidrio con refracción](renders/refraccion.png) | ![Vidrio sin refracción](renders/refraccion-sin.png) |

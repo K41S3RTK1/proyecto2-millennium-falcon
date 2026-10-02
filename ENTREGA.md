@@ -90,9 +90,9 @@ los 30 cuadros/s del archivo no garantizan ese rendimiento en vivo.
 Comprobaciones para la actualización del 1 de octubre de 2026:
 
 - `cargo fmt --check`: aprobado.
-- `cargo test --offline --locked`: 31 pruebas aprobadas.
+- `cargo test --offline --locked`: 34 pruebas aprobadas.
 - `cargo clippy --offline --locked --all-targets -- -D warnings`: aprobado.
-- `--validate-gpu`: 96 comparaciones CPU/GPU aprobadas, incluidos los cuatro momentos de la ráfaga.
+- `--validate-gpu`: 128 comparaciones CPU/GPU aprobadas, incluidos la ráfaga y el sable apagado.
 - `--validate-flight`: 34 comparaciones CPU/GPU de vuelo y combate aprobadas.
 - `--audio-check`: catorce archivos, transiciones, bucles y efectos simultáneos verificados.
 - Flechas izquierda/derecha corregidas en ambos modos nativos y en el visor web.
@@ -107,10 +107,10 @@ La actualización de calidad y ráfaga incluye suavizado con `J` y Detalle 1600
 en las vistas 1–8. El MP4 existente conserva la demostración anterior: no muestra
 la nueva ráfaga automática ni el filtro de presentación de la ventana.
 
-## Prueba de sable en rama separada
+## Sable interactivo
 
-En `extra-sable-interactivo`, pulsar `7` y luego `L` o el botón Sable para
+Integrado en `main` desde `extra-sable-interactivo`. Pulsar `7` y luego `L` o el botón Sable para
 apagar/encender. Sin sonidos nuevos; conserva su estado al cambiar de vista.
 La empuñadura permanece y se apagan hoja, halo y luz roja, también para rayos
 secundarios. Se añade `--saber-off` para exportar comparaciones CPU/GPU.
-La rama contiene 34 pruebas y la validación GPU amplía la matriz a 128 cuadros.
+La versión contiene 34 pruebas y la validación GPU amplía la matriz a 128 cuadros.
