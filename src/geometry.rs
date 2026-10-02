@@ -295,6 +295,16 @@ impl Bvh {
         id
     }
     pub fn hit(&self, blocks: &[Block], r: Ray, limit: f32) -> Option<Hit> {
+        self.hit_excluding_material(blocks, r, limit, None)
+    }
+    /// Ignora un material desactivado sin reconstruir la BVH.
+    pub fn hit_excluding_material(
+        &self,
+        blocks: &[Block],
+        r: Ray,
+        limit: f32,
+        excluded: Option<usize>,
+    ) -> Option<Hit> {
         if self.nodes.is_empty() {
             return None;
         }
@@ -316,6 +326,9 @@ impl Bvh {
             match &self.nodes[id].kind {
                 Kind::Leaf { start, count } => {
                     for &i in &self.indices[*start..start + count] {
+                        if excluded == Some(blocks[i].material) {
+                            continue;
+                        }
                         if let Some(hit) = blocks[i].intersect(r, max, i) {
                             max = hit.t;
                             best = Some(hit);

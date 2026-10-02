@@ -16,6 +16,7 @@ pub struct Settings {
     pub height: usize,
     pub quality: u8,
     pub reflections: bool,
+    pub saber_on: bool,
     pub refractions: bool,
     pub skybox: bool,
     pub space: bool,
@@ -31,6 +32,7 @@ impl Default for Settings {
             height: 720,
             quality: 2,
             reflections: true,
+            saber_on: true,
             refractions: true,
             skybox: true,
             space: false,
@@ -61,13 +63,13 @@ pub struct Frame {
     pub height: usize,
     pub elapsed: Duration,
 }
-fn shadow(scene: &Scene, origin: V, light: V) -> V {
+fn shadow(scene: &Scene, origin: V, light: V, saber_on: bool) -> V {
     let delta = light - origin;
     let mut distance = delta.len();
     let mut ray = Ray::new(origin, delta);
     let mut visibility = V::splat(1.);
     for _ in 0..10 {
-        let Some(hit) = scene.hit(ray, distance) else {
+        let Some(hit) = scene.hit_with_saber(ray, distance, saber_on) else {
             return visibility;
         };
         let m = &scene.materials[scene.blocks[hit.object].material];
@@ -116,11 +118,14 @@ fn trace_local(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -
         if cfg.flight.active {
             cfg.flight.glow(ray, limit) + cfg.combat.glow(ray, limit)
         } else {
-            cfg.blaster_shots()
-                .iter()
-                .fold(saber_glow(ray, limit), |glow, shot| {
-                    glow + shot.glow(ray, limit)
-                })
+            cfg.blaster_shots().iter().fold(
+                if cfg.saber_on {
+                    saber_glow(ray, limit)
+                } else {
+                    V::default()
+                },
+                |glow, shot| glow + shot.glow(ray, limit),
+            )
         }
     };
 
@@ -137,7 +142,7 @@ fn trace_local(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -
             V::new(0.05, 0.06, 0.08)
         }
     };
-    let Some(hit) = scene.hit(ray, f32::INFINITY) else {
+    let Some(hit) = scene.hit_with_saber(ray, f32::INFINITY, cfg.saber_on) else {
         return sky(ray.d) + glow(f32::INFINITY);
     };
     let block = scene.blocks[hit.object];
@@ -166,13 +171,18 @@ fn trace_local(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -
             (n * 0.85 + tangent * 0.4 + bitangent * 0.3).unit(),
             (n * 0.85 - tangent * 0.4 - bitangent * 0.3).unit(),
         ] {
-            if let Some(h) = scene.hit(Ray::new(hit.point + n * 0.002, d), 0.65) {
+            if let Some(h) =
+                scene.hit_with_saber(Ray::new(hit.point + n * 0.002, d), 0.65, cfg.saber_on)
+            {
                 occlusion += 1. - h.t / 0.65;
             }
         }
         diffuse = diffuse * (1. - occlusion * 0.28);
     }
     for (index, &light) in scene.lights.iter().enumerate() {
+        if !cfg.saber_on && index == crate::scene::SABER_LIGHT_INDEX {
+            continue;
+        }
         let position = light.position;
         let color = if cfg.space && index < 2 {
             light.color.mix(V::new(0.48, 0.65, 1.), 0.65)
@@ -190,7 +200,7 @@ fn trace_local(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -
         if ndotl <= 0. {
             continue;
         }
-        let visibility = shadow(scene, hit.point + n * 0.002, position);
+        let visibility = shadow(scene, hit.point + n * 0.002, position, cfg.saber_on);
         diffuse = diffuse + color.hadamard(visibility) * (intensity * ndotl);
         let half = (l - ray.d).unit();
         let highlight = n.dot(half).max(0.).powf(mat.shininess) * mat.specular;

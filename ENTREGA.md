@@ -106,3 +106,11 @@ La intro, Vader, el droide y los rebeldes complementan la presentación visual.
 La actualización de calidad y ráfaga incluye suavizado con `J` y Detalle 1600
 en las vistas 1–8. El MP4 existente conserva la demostración anterior: no muestra
 la nueva ráfaga automática ni el filtro de presentación de la ventana.
+
+## Prueba de sable en rama separada
+
+En `extra-sable-interactivo`, pulsar `7` y luego `L` o el botón Sable para
+apagar/encender. Sin sonidos nuevos; conserva su estado al cambiar de vista.
+La empuñadura permanece y se apagan hoja, halo y luz roja, también para rayos
+secundarios. Se añade `--saber-off` para exportar comparaciones CPU/GPU.
+La rama contiene 34 pruebas y la validación GPU amplía la matriz a 128 cuadros.

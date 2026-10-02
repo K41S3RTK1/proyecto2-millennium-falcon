@@ -96,8 +96,8 @@ cargo run --release --offline -- --validate-flight
 cargo run --release --offline -- --audio-check
 ```
 
-La verificación incluye 31 pruebas, 34 comparaciones CPU/GPU del vuelo y combate,
-las 96 del diorama y los catorce audios. Las flechas horizontales usan el mismo
+La verificación incluye 34 pruebas, 34 comparaciones CPU/GPU del vuelo y combate,
+las 128 del diorama y los catorce audios. Las flechas horizontales usan el mismo
 sentido en el diorama, el modo nave y el visor web: izquierda gira la escena a
 la izquierda y derecha a la derecha.
 
@@ -149,6 +149,7 @@ respaldo. Si el shader no compila, la aplicación vuelve automáticamente a CPU.
 | Suavizado de bordes en GPU | `J` (también disponible en modo nave) |
 | Alternar raytracer CPU / GPU | `T` (misma cámara y efectos) |
 | Vader y sable | `7` o botón Vader |
+| Encender/apagar sable (sólo en la vista 7) | `L` o botón Sable; sin audio adicional |
 | Soldados rebeldes | `8` o botón Rebeldes |
 | Modo nave y combate | `9` o botón Nave |
 | Impulso, únicamente en el espacio del modo nave | `E` o botón Impulso |

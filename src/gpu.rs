@@ -178,6 +178,9 @@ impl Renderer {
         for (name, value) in [
             ("quality", cfg.quality as i32),
             ("reflections", i32::from(cfg.reflections)),
+            ("saberEnabled", i32::from(cfg.saber_on)),
+            ("saberMaterial", crate::material::PLASMA as i32),
+            ("saberLightIndex", crate::scene::SABER_LIGHT_INDEX as i32),
             ("refractions", i32::from(cfg.refractions)),
             ("skyEnabled", i32::from(cfg.skybox)),
             ("spaceMode", i32::from(cfg.space)),
@@ -341,19 +344,20 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
     let mut renderer = Renderer::new(&mut window, &thread, scene)?;
     let mut failed = false;
     for index in 0..8 {
-        for variant in 0..12 {
+        for variant in 0..16 {
             let cfg = Settings {
                 width: 400,
                 height: 240,
-                quality: if variant == 1 { 2 } else { 0 },
-                reflections: variant != 2,
+                quality: if variant == 1 || variant == 13 { 2 } else { 0 },
+                saber_on: variant < 12,
+                reflections: variant != 2 && variant != 14,
                 refractions: variant != 3,
                 skybox: variant != 4,
-                space: variant == 5,
+                space: variant == 5 || variant == 15,
                 flight: crate::flight::Flight::default(),
                 combat: crate::combat::Combat::default(),
                 burst: crate::blaster::Burst {
-                    age: if variant >= 8 {
+                    age: if (8..12).contains(&variant) {
                         [0.07, 0.30, 0.54, 0.77][variant - 8]
                     } else {
                         -1.
@@ -392,9 +396,17 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
                 mean,
                 outliers
             );
-            if index == 7 && variant >= 8 {
+            if index == 7 && (8..12).contains(&variant) {
                 crate::png::save(
                     format!("/tmp/falcon-rafaga-{}.png", variant - 8),
+                    cfg.width,
+                    cfg.height,
+                    &gpu,
+                )?;
+            }
+            if index == 6 && (variant == 1 || variant == 13) {
+                crate::png::save(
+                    format!("/tmp/falcon-sable-{}.png", cfg.saber_on),
                     cfg.width,
                     cfg.height,
                     &gpu,
@@ -421,7 +433,7 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
     if failed {
         Err("La comparación CPU/GPU excedió la tolerancia visual".into())
     } else {
-        println!("Validación CPU/GPU: 96 comparaciones aprobadas");
+        println!("Validación CPU/GPU: 128 comparaciones aprobadas");
         Ok(())
     }
 }

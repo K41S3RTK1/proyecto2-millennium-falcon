@@ -392,6 +392,14 @@ pub fn run(
             orbit = false;
             changed = true;
         }
+        if selected_view == 6
+            && (window.is_key_pressed(KEY_L)
+                || typed.iter().any(|c| c.eq_ignore_ascii_case(&'l'))
+                || (click && fire_button.check_collision_point_rec(mouse)))
+        {
+            settings.saber_on = !settings.saber_on;
+            changed = true;
+        }
         if selected_view == 7
             && (window.is_key_pressed(KEY_PERIOD)
                 || typed.contains(&'.')
@@ -438,7 +446,8 @@ pub fn run(
             }
         }
         if inside
-            && !(selected_view == 7 && fire_button.check_collision_point_rec(mouse))
+            && !((selected_view == 6 || selected_view == 7)
+                && fire_button.check_collision_point_rec(mouse))
             && window.is_mouse_button_down(MouseButton::MOUSE_BUTTON_LEFT)
         {
             let delta = window.get_mouse_delta();
@@ -781,6 +790,20 @@ pub fn run(
                 148,
                 17,
                 muted,
+            );
+        }
+        if selected_view == 6 {
+            draw.draw_rectangle_rounded(fire_button, 0.2, 4, Color::new(80, 35, 26, 235));
+            draw.draw_text(
+                if settings.saber_on {
+                    "[L] Sable SI"
+                } else {
+                    "[L] Sable NO"
+                },
+                fire_button.x as i32 + 20,
+                fire_button.y as i32 + 8,
+                18,
+                accent,
             );
         }
         if selected_view == 7 {

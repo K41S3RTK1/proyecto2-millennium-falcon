@@ -6,6 +6,7 @@ out vec4 finalColor;
 uniform sampler2D sceneData;
 uniform sampler2D skyData;
 uniform int nodeCount, blockBase, materialBase, lightBase, lightCount, skySize;
+uniform int saberEnabled, saberMaterial, saberLightIndex;
 uniform int quality, reflections, refractions, skyEnabled, spaceMode;
 uniform vec2 resolution;
 uniform vec3 eye, forward, right, up, saberBottom, saberTop;
@@ -61,6 +62,7 @@ bool intersectSceneImpl(vec3 o, vec3 d, float limit, bool shadowRay, out Hit hit
         int start=int(meta.x);
         for(int j=0;j<count;j++) {
             int b=blockBase+(start+j)*3;
+            if(saberEnabled==0 && int(dataAt(b).w)==saberMaterial) continue;
             if(interval(o,d,inv,dataAt(b).xyz,dataAt(b+1).xyz,1e30,false,tn,tf)) {
                 float t=tn>0.0005?tn:tf;
                 if(t<best) {
@@ -143,6 +145,7 @@ vec3 shadow(vec3 o,vec3 light) {
     return vec3(0);
 }
 vec3 saberGlow(vec3 o,vec3 d,float limit) {
+    if(saberEnabled==0) return vec3(0);
     vec3 v=saberTop-saberBottom,w=o-saberBottom;
     float b=dot(d,v),c=dot(v,v),dw=dot(d,w),e=dot(v,w);
     float t=c-b*b>1e-6?clamp((e-b*dw)/(c-b*b),0.,1.):clamp(e/c,0.,1.);
@@ -246,6 +249,7 @@ vec3 traceRay(vec3 origin, vec3 direction) {
             diffuse*=1.-occlusion*.28;
         }
         for(int i=0;i<lightCount;i++) {
+            if(saberEnabled==0 && i==saberLightIndex) continue;
             vec4 pos=dataAt(lightBase+i*2),color=dataAt(lightBase+i*2+1);
             float attenuation=color.w>0.?pow(max(1.-length(pos.xyz-hit.p)/color.w,0.),2.):1.;
             float intensity=pos.w*attenuation;

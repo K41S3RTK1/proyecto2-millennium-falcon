@@ -78,15 +78,52 @@ convierten a porcentaje, sin asumir una normalización. El techo por boleto es
 El video de 4:49 ya incluye el vuelo y combate; conserva la versión previa al
 suavizado y a la ráfaga automática. Demostrar estas mejoras en vivo.
 
-## Posible mejora del sable de Vader
+## Sable interactivo de Vader
 
-Es viable agregar una tecla exclusiva de la vista 7 para encender/apagar el sable
-sin sonidos nuevos. Aún no está implementada. Debe controlar conjuntamente la
-hoja de 22 bloques, su emisión y halo, y la luz roja local, dejando la empuñadura.
-CPU, GPU, sombras y reflejos deben respetar el mismo estado, para evitar que
-el sable apagado siga apareciendo en reflejos o iluminando la escena.
+Implementado en la rama `extra-sable-interactivo`, separada de main. En la vista
+7, `L` o el botón Sable enciende/apaga la hoja sin añadir ni reiniciar audio.
+La empuñadura permanece visible; se controlan conjuntamente la hoja de 22 bloques,
+su emisión y halo, y la luz roja local. El estado se conserva al cambiar de cámara.
+El cálculo CPU/GPU excluye la hoja apagada de los rayos primarios, las sombras,
+la oclusión, los reflejos y los rayos que atraviesan el vidrio. No reconstruye la
+geometría ni la BVH por cuadro. Al iniciar la aplicación el sable está encendido.
 
 El plasma actual es opaco y emisivo; no refracta. Su imagen puede aparecer en
 materiales reflectantes y puede verse a través de vidrio refractivo cuando el
 encuadre lo permite. La refracción de la rúbrica se demuestra claramente con
 el vidrio de las vistas 3–4; no exige que el sable reúna todos los efectos.
+
+## Cómo explicar los tres efectos
+
+**Refracción:** la luz cambia de dirección al cruzar entre medios con distintos
+índices de refracción. En esta escena los rayos entran y salen del vidrio de la
+cabina y del depósito, cuyo índice es 1.5. El vidrio permite mirar al interior,
+pero desplaza la imagen según el ángulo; no es solamente bajar la opacidad.
+Tiene sentido contextual porque son superficies de vidrio de una nave y de
+un recipiente transparente. Mostrar las vistas 3–4 y comparar con G.
+
+Frase: «El vidrio tiene un índice óptico diferente del aire: calculo cómo se
+curvan los rayos al atravesarlo, por eso cambia lo que vemos detrás».
+
+**Reflexión:** la luz rebota en una superficie. El raytracer lanza un rayo
+secundario en la dirección reflejada y combina su color según el material.
+El metal oscuro pulido tiene reflectividad 0.42; el casco y el vidrio también
+reflejan en menor proporción, con Fresnel en el vidrio. Tiene sentido contextual
+porque una nave tiene superficies metálicas y ventanas que reflejan su entorno.
+Comparar F en una vista cercana de metal/vidrio y variar un poco el ángulo.
+El brillo especular o la luz roja cercana al sable, por sí solos, no prueban
+que se esté reflejando otra parte de la escena.
+
+Frase: «El material devuelve parte de la luz del entorno; el reflejo cambia
+cuando muevo la cámara porque recalculo la dirección del rayo reflejado».
+
+**Skybox:** un entorno que rodea la escena, representado aquí con seis caras de
+un cubemap. Cuando un rayo no golpea geometría, su dirección determina el color
+que toma del cielo; esto también se aplica a rayos de reflexión que llegan al
+entorno. No es una propiedad óptica equivalente a transparencia o reflectividad,
+sino el entorno que pueden ver esos materiales. Los dos cielos tienen sentido:
+Tatooine sitúa el puerto y el espacial sitúa el vuelo del Halcón. Mostrar C para
+cambiar el entorno, B para desactivarlo/activarlo y girar para ver su continuidad.
+
+Frase: «La escena está rodeada por un cubemap de seis caras. El cielo cambia
+según la dirección de observación y también puede verse en los reflejos».

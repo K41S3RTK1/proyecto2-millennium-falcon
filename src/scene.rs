@@ -10,6 +10,8 @@ pub fn rebel_muzzle(index: usize) -> V {
 }
 pub const VADER_ORIGIN: V = V::new(-3.1, 0., -7.65);
 pub const SABER_BOTTOM: V = V::new(VADER_ORIGIN.x + 0.81, 1.20, VADER_ORIGIN.z - 0.37);
+// La tercera luz del diorama pertenece al sable; las escenas de vuelo tienen dos.
+pub const SABER_LIGHT_INDEX: usize = 2;
 pub const SABER_TOP: V = V::new(SABER_BOTTOM.x, 2.96, SABER_BOTTOM.z);
 #[derive(Clone, Copy)]
 pub struct Light {
@@ -116,6 +118,14 @@ impl Scene {
         scene.blocks.extend(b.blocks);
         scene.bvh = Bvh::build(&scene.blocks);
         scene
+    }
+    pub fn hit_with_saber(&self, r: Ray, max: f32, saber_on: bool) -> Option<Hit> {
+        self.bvh.hit_excluding_material(
+            &self.blocks,
+            r,
+            max,
+            if saber_on { None } else { Some(PLASMA) },
+        )
     }
     pub fn hit(&self, r: Ray, max: f32) -> Option<Hit> {
         self.bvh.hit(&self.blocks, r, max)
