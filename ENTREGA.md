@@ -1,12 +1,14 @@
 # Preparación de la entrega
 
+Guion breve y evidencia por criterio: [PRESENTACION.md](PRESENTACION.md).
+
 ## Para presentar en vivo
 
 1. Abrir `Iniciar.command` o ejecutar `cargo run --release --offline`. Aparece
    la intro y después la ventana raylib con raytracing GPU. Enter/Espacio salta
    la intro y reproduce TIE antes de la música de ambiente. No hace falta navegador.
 2. Probar antes de clase arrastre, flechas y zoom. `Q` alterna Nítido 1200,
-   Fluido adaptativo y Retina constante. Inicia en Nítido 1200. Usar Fluido
+   Detalle 1600, Fluido adaptativo y Retina constante. Inicia en Nítido 1200. Usar Fluido
    para recorridos si hace falta; Retina prioriza detalle y puede verse lento. `H` oculta la ayuda.
 3. Comprobar que el pie indica **GPU**. `T` alterna con CPU como respaldo.
    Mostrar `1` Principal; luego `2` Motor para enseñar la banda azul y ventiladores.
@@ -15,7 +17,8 @@
 6. Mostrar `6` Droide, luego `7` Vader y su sable. `C` alterna Tatooine/espacio.
    `I` permite repetir la intro; `M` silencia todo el audio. Al pulsar `7`,
    esperar los 13.653 segundos del sable para escuchar el tema de Vader.
-7. Probar `8` Rebeldes: escuchar el efecto de entrada y pulsar `.` o Disparar
+7. Probar `8` Rebeldes: la entrada dispara cuatro láseres (izquierda, derecha,
+   izquierda, derecha) con su audio. Pulsar `.` o Disparar
    para lanzar un proyectil con sonido. Cambiar de vista debe detener el efecto.
 8. Volver a `1` y pulsar Espacio para el recorrido automático. Espacio lo detiene.
 9. Abrir `9` Nave y esperar el ascenso (49.835 s). En el espacio, `E` activa
@@ -87,9 +90,9 @@ los 30 cuadros/s del archivo no garantizan ese rendimiento en vivo.
 Comprobaciones para la actualización del 1 de octubre de 2026:
 
 - `cargo fmt --check`: aprobado.
-- `cargo test --offline --locked`: 29 pruebas aprobadas.
+- `cargo test --offline --locked`: 31 pruebas aprobadas.
 - `cargo clippy --offline --locked --all-targets -- -D warnings`: aprobado.
-- `--validate-gpu`: 64 comparaciones CPU/GPU aprobadas.
+- `--validate-gpu`: 96 comparaciones CPU/GPU aprobadas, incluidos los cuatro momentos de la ráfaga.
 - `--validate-flight`: 34 comparaciones CPU/GPU de vuelo y combate aprobadas.
 - `--audio-check`: catorce archivos, transiciones, bucles y efectos simultáneos verificados.
 - Flechas izquierda/derecha corregidas en ambos modos nativos y en el visor web.
@@ -99,3 +102,7 @@ Antes de presentar, probar los controles en la computadora que se utilizará y
 tener abierto el MP4 como respaldo. Para demostrar la rúbrica, priorizar rotación
 y zoom, cinco materiales, vidrio con `G`, reflexión con `F` y skybox con `B`/`C`.
 La intro, Vader, el droide y los rebeldes complementan la presentación visual.
+
+La actualización de calidad y ráfaga incluye suavizado con `J` y Detalle 1600
+en las vistas 1–8. El MP4 existente conserva la demostración anterior: no muestra
+la nueva ráfaga automática ni el filtro de presentación de la ventana.

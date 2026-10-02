@@ -105,13 +105,15 @@ fn adapt_width(width: usize, seconds: f32) -> usize {
 enum MotionQuality {
     Retina,
     Sharp,
+    Detail,
     Adaptive,
 }
 impl MotionQuality {
     fn next(self) -> Self {
         match self {
             Self::Retina => Self::Sharp,
-            Self::Sharp => Self::Adaptive,
+            Self::Sharp => Self::Detail,
+            Self::Detail => Self::Adaptive,
             Self::Adaptive => Self::Retina,
         }
     }
@@ -119,6 +121,7 @@ impl MotionQuality {
         match self {
             Self::Retina => "Q  Retina constante",
             Self::Sharp => "Q  Nitido 1200 px",
+            Self::Detail => "Q  Detalle 1600 px",
             Self::Adaptive => "Q  Fluido adaptativo",
         }
     }
@@ -126,6 +129,7 @@ impl MotionQuality {
         match self {
             Self::Retina => (physical as usize).clamp(1600, 2560),
             Self::Sharp => 1200,
+            Self::Detail => 1600,
             Self::Adaptive => adaptive,
         }
     }
@@ -219,6 +223,7 @@ pub fn run(
     let mut orbit = auto_orbit;
     let mut selected_view = 0;
     let mut shot_started: Option<Instant> = None;
+    let mut burst_started: Option<Instant> = None;
     let mut shooter = 1;
     let mut help = true;
     let mut request_save = false;
@@ -273,7 +278,12 @@ pub fn run(
             camera = preset(destination);
             orbit = false;
             shot_started = None;
+            burst_started = None;
             settings.shot = crate::blaster::Shot::default();
+            settings.burst = crate::blaster::Burst::default();
+            if destination == 7 {
+                burst_started = Some(Instant::now());
+            }
             dirty = true;
             refined_level = 0;
             last_input = Instant::now();
@@ -282,6 +292,7 @@ pub fn run(
             continue;
         }
         if window.is_key_pressed(KEY_Q)
+            || typed.iter().any(|c| c.eq_ignore_ascii_case(&'q'))
             || (click && quality_button.check_collision_point_rec(mouse))
         {
             motion_quality = motion_quality.next();
@@ -326,6 +337,7 @@ pub fn run(
             camera = Camera::default();
             selected_view = 0;
             shot_started = None;
+            burst_started = None;
             orbit = false;
             generation += 1;
             cancel.store(generation, Ordering::Relaxed);
@@ -349,10 +361,23 @@ pub fn run(
         ];
         for (i, key) in keys.iter().enumerate() {
             let button = Rectangle::new(20. + i as f32 * view_step, 59., view_step - 6., 28.);
-            if window.is_key_pressed(*key) || (click && button.check_collision_point_rec(mouse)) {
+            if window.is_key_pressed(*key)
+                || typed.contains(&(char::from(b'1' + i as u8)))
+                || (click && button.check_collision_point_rec(mouse))
+            {
                 audio.event(crate::audio::Event::View(i));
                 selected_view = i;
                 shot_started = None;
+                burst_started = None;
+                if i == 7 {
+                    burst_started = Some(Instant::now());
+                    settings.burst.ranges = std::array::from_fn(|soldier| {
+                        let origin = crate::scene::rebel_muzzle(soldier);
+                        scene
+                            .hit(crate::math::Ray::new(origin, V::new(1., 0., 0.)), 6.)
+                            .map_or(6., |h| h.t)
+                    });
+                }
                 camera = preset(i);
                 orbit = false;
                 changed = true;
@@ -363,15 +388,18 @@ pub fn run(
             camera = Camera::default();
             selected_view = 0;
             shot_started = None;
+            burst_started = None;
             orbit = false;
             changed = true;
         }
         if selected_view == 7
             && (window.is_key_pressed(KEY_PERIOD)
+                || typed.contains(&'.')
                 || window.is_key_pressed(KEY_KP_DECIMAL)
                 || (click && fire_button.check_collision_point_rec(mouse)))
         {
             audio.event(crate::audio::Event::Fire);
+            burst_started = None;
             shooter = (shooter + 1) % 2;
             settings.shot.soldier = shooter;
             let origin = crate::scene::rebel_muzzle(shooter);
@@ -386,7 +414,17 @@ pub fn run(
             shot_started = None;
             settings.shot.age = -1.;
         }
-        if settings.shot.active() || previous_shot_age >= 0. {
+        let previous_burst_age = settings.burst.age;
+        settings.burst.age = burst_started.map_or(-1., |t| t.elapsed().as_secs_f32());
+        if settings.burst.age >= crate::blaster::BURST_DURATION {
+            burst_started = None;
+            settings.burst.age = -1.;
+        }
+        if settings.shot.active()
+            || previous_shot_age >= 0.
+            || settings.burst.active()
+            || previous_burst_age >= 0.
+        {
             changed = true;
         }
         for (key, flag) in [
@@ -689,6 +727,7 @@ pub fn run(
             match motion_quality {
                 MotionQuality::Retina => "RETINA",
                 MotionQuality::Sharp => "NITIDO",
+                MotionQuality::Detail => "DETALLE 1600",
                 MotionQuality::Adaptive => "FLUIDO",
             }
         } else if shown_level == 1 {

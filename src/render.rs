@@ -20,6 +20,7 @@ pub struct Settings {
     pub skybox: bool,
     pub space: bool,
     pub shot: crate::blaster::Shot,
+    pub burst: crate::blaster::Burst,
     pub flight: crate::flight::Flight,
     pub combat: crate::combat::Combat,
 }
@@ -34,8 +35,23 @@ impl Default for Settings {
             skybox: true,
             space: false,
             shot: crate::blaster::Shot::default(),
+            burst: crate::blaster::Burst::default(),
             flight: crate::flight::Flight::default(),
             combat: crate::combat::Combat::default(),
+        }
+    }
+}
+impl Settings {
+    pub fn blaster_shots(self) -> [crate::blaster::Shot; 4] {
+        if self.burst.active() {
+            self.burst.shots()
+        } else {
+            [
+                self.shot,
+                crate::blaster::Shot::default(),
+                crate::blaster::Shot::default(),
+                crate::blaster::Shot::default(),
+            ]
         }
     }
 }
@@ -100,7 +116,11 @@ fn trace_local(scene: &Scene, ray: Ray, cfg: Settings, depth: u8, weight: f32) -
         if cfg.flight.active {
             cfg.flight.glow(ray, limit) + cfg.combat.glow(ray, limit)
         } else {
-            saber_glow(ray, limit) + cfg.shot.glow(ray, limit)
+            cfg.blaster_shots()
+                .iter()
+                .fold(saber_glow(ray, limit), |glow, shot| {
+                    glow + shot.glow(ray, limit)
+                })
         }
     };
 

@@ -1,6 +1,39 @@
 //! Proyectil analítico de duración acotada, compartido por CPU y GPU.
 use crate::math::{Ray, V};
 pub const DURATION: f32 = 0.68;
+// Ataques del audio BLASTER FX.wav: izquierda, derecha, izquierda, derecha.
+pub const BURST_STARTS: [f32; 4] = [0.045, 0.275, 0.505, 0.735];
+pub const BURST_DURATION: f32 = BURST_STARTS[3] + DURATION;
+#[derive(Clone, Copy, Debug)]
+pub struct Burst {
+    pub age: f32,
+    pub ranges: [f32; 2],
+}
+impl Default for Burst {
+    fn default() -> Self {
+        Self {
+            age: -1.,
+            ranges: [6.; 2],
+        }
+    }
+}
+impl Burst {
+    pub fn active(self) -> bool {
+        self.age >= 0. && self.age < BURST_DURATION
+    }
+    pub fn shots(self) -> [Shot; 4] {
+        std::array::from_fn(|i| Shot {
+            age: if self.active() {
+                self.age - BURST_STARTS[i]
+            } else {
+                -1.
+            },
+            // En la cámara 8, el soldado 1 está a la izquierda de la pantalla.
+            soldier: 1 - i % 2,
+            range: self.ranges[1 - i % 2],
+        })
+    }
+}
 #[derive(Clone, Copy, Debug)]
 pub struct Shot {
     pub age: f32,

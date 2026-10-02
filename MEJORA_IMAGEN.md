@@ -3,7 +3,8 @@
 Rama `mejora-imagen-fluida`, basada en la entrega `0c6c051`. Añade un filtro
 de bordes en pantalla y una opción de 1600 px en el modo nave. Inicia a 1200 px.
 No añade dependencias. `J` permite comparar el filtro y `Q` alterna
-1200/1600/800 en vuelo. Si el shader no está disponible, se presenta la imagen
+1200/1600/800 en vuelo. Las vistas 1–8 ofrecen con `Q`: Nítido 1200, Detalle 1600,
+Fluido adaptativo y Retina; la selección se conserva al cambiar de vista. Si el shader no está disponible, se presenta la imagen
 sin filtrar. El respaldo CPU conserva su comportamiento anterior.
 
 El filtro reduce escalones en siluetas y diagonales, pero puede suavizar detalles
@@ -45,6 +46,11 @@ justifica conservar 1200 como ancho inicial del vuelo; 1600 queda opcional.
 El diorama también conserva 1200 durante el movimiento en su modo inicial. Para priorizar rendimiento se puede desactivar
 el filtro con `J` y bajar resolución con `Q`.
 
-Validación: compilación release, 29 pruebas y Clippy con todos los targets y
+Validación: compilación release, 31 pruebas y 96 comparaciones CPU/GPU y Clippy con todos los targets y
 advertencias tratadas como errores. El shader se compiló y se compararon sus
 imágenes durante el benchmark.
+
+La tecla 8 y el botón Rebeldes ahora acompañan el audio de entrada con cuatro
+láseres alternados. Los cuatro comparten el cálculo de proyectiles CPU/GPU y
+conservan oclusión y reflejos. La tecla punto interrumpe la ráfaga para efectuar
+un disparo manual; cambiar de vista cancela ambas animaciones.

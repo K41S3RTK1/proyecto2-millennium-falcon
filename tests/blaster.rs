@@ -4,6 +4,65 @@ use falcon_diorama::{
     scene::Scene,
 };
 #[test]
+fn burst_fires_four_alternating_barrels_and_preserves_overlapping_bolts() {
+    use falcon_diorama::blaster::{BURST_STARTS, Burst};
+    for (i, start) in BURST_STARTS.iter().enumerate() {
+        let shots = Burst {
+            age: start + 0.01,
+            ..Default::default()
+        }
+        .shots();
+        assert!(shots[i].active());
+        assert_eq!(shots[i].soldier, 1 - i % 2);
+        assert!((shots[i].age - 0.01).abs() < 0.0001);
+        assert!(shots.iter().skip(i + 1).all(|shot| !shot.active()));
+        if i > 0 {
+            assert!(
+                shots[i - 1].active(),
+                "El disparo anterior debe seguir viajando"
+            );
+        }
+    }
+    let shots = Burst {
+        age: 0.55,
+        ranges: [2., 4.],
+    }
+    .shots();
+    assert_eq!(shots[0].range, 4.);
+    assert_eq!(shots[1].range, 2.);
+}
+#[test]
+fn burst_is_silent_before_start_and_clears_after_last_bolt() {
+    use falcon_diorama::blaster::{BURST_DURATION, Burst};
+    for age in [-1., 0., BURST_DURATION, BURST_DURATION + 1.] {
+        assert!(
+            Burst {
+                age,
+                ..Default::default()
+            }
+            .shots()
+            .iter()
+            .all(|shot| !shot.active())
+        );
+    }
+    let cfg = falcon_diorama::render::Settings {
+        shot: Shot {
+            age: 0.1,
+            soldier: 1,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        cfg.blaster_shots()
+            .iter()
+            .filter(|shot| shot.active())
+            .count(),
+        1
+    );
+    assert_eq!(cfg.blaster_shots()[0].soldier, 1);
+}
+#[test]
 fn projectile_moves_from_muzzle_and_disappears_at_end() {
     let early = Shot {
         age: 0.03,

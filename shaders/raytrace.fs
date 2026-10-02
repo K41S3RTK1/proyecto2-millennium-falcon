@@ -10,8 +10,8 @@ uniform int quality, reflections, refractions, skyEnabled, spaceMode;
 uniform vec2 resolution;
 uniform vec3 eye, forward, right, up, saberBottom, saberTop;
 uniform float cameraScale;
-uniform vec3 boltA, boltB, muzzle;
-uniform float shotAge, muzzleFlash;
+uniform vec3 boltA[4], boltB[4], muzzle[4];
+uniform float shotAge[4], muzzleFlash[4];
 uniform int flightEnabled;
 uniform float flightProgress, flightBoost, flightAge;
 uniform vec3 shipOffset;
@@ -160,10 +160,14 @@ float boltSegment(vec3 o,vec3 d,float limit,vec3 a,vec3 b,float core,float halo)
     return exp(-dist/core)*2.+exp(-dist/halo)*.25;
 }
 vec3 blasterGlow(vec3 o,vec3 d,float limit) {
-    if(shotAge<0. || shotAge>=.68) return vec3(0);
-    float beam=boltSegment(o,d,limit,boltA,boltB,.0018,.018);
-    float flash=boltSegment(o,d,limit,muzzle,muzzle+vec3(.06,0,0),.005,.045)*muzzleFlash;
-    return vec3(1.,.028,.006)*(beam+flash)*min(1.-shotAge/.68,.8)*5.;
+    vec3 color=vec3(0);
+    for(int i=0;i<4;i++) {
+        if(shotAge[i]<0. || shotAge[i]>=.68) continue;
+        float beam=boltSegment(o,d,limit,boltA[i],boltB[i],.0018,.018);
+        float flash=boltSegment(o,d,limit,muzzle[i],muzzle[i]+vec3(.06,0,0),.005,.045)*muzzleFlash[i];
+        color+=vec3(1.,.028,.006)*(beam+flash)*min(1.-shotAge[i]/.68,.8)*5.;
+    }
+    return color;
 }
 vec3 exhaustGlow(vec3 o,vec3 d,float limit) {
     if(flightBoost<=0.) return vec3(0);

@@ -96,8 +96,8 @@ cargo run --release --offline -- --validate-flight
 cargo run --release --offline -- --audio-check
 ```
 
-La verificación incluye 29 pruebas, 34 comparaciones CPU/GPU del vuelo y combate,
-las 64 del diorama y los catorce audios. Las flechas horizontales usan el mismo
+La verificación incluye 31 pruebas, 34 comparaciones CPU/GPU del vuelo y combate,
+las 96 del diorama y los catorce audios. Las flechas horizontales usan el mismo
 sentido en el diorama, el modo nave y el visor web: izquierda gira la escena a
 la izquierda y derecha a la derecha.
 
@@ -145,7 +145,7 @@ respaldo. Si el shader no compila, la aplicación vuelve automáticamente a CPU.
 | Activar/desactivar reflexión | `F` |
 | Activar/desactivar refracción | `G` |
 | Activar/desactivar skybox | `B` |
-| Nitidez durante el movimiento | `Q` o botón superior: Nítido 1200 → Fluido → Retina |
+| Nitidez durante el movimiento | `Q` o botón superior: Nítido 1200 → Detalle 1600 → Fluido → Retina |
 | Suavizado de bordes en GPU | `J` (también disponible en modo nave) |
 | Alternar raytracer CPU / GPU | `T` (misma cámara y efectos) |
 | Vader y sable | `7` o botón Vader |
@@ -163,7 +163,7 @@ respaldo. Si el shader no compila, la aplicación vuelve automáticamente a CPU.
 
 ### Rendimiento en Mac M1
 
-La rama experimental `mejora-imagen-fluida` añade un pase de suavizado de bordes
+La mejora desarrollada en `mejora-imagen-fluida` e integrada en `main` añade un pase de suavizado de bordes
 en GPU, activado inicialmente y comparable con `J`. En vuelo inicia a 1200 px;
 `Q` permite probar 1600 para más detalle u 800 para priorizar fluidez. El diorama mantiene sus modos de
 resolución y refinamiento anteriores. El filtro afecta sólo a la presentación de
@@ -182,6 +182,7 @@ ni depende de aceleración de rayos dedicada del hardware.
 - La imagen permanece en GPU para presentarla; solo las capturas y las pruebas
   comparativas la leen de vuelta a CPU.
 - Inicia en **Nítido 1200**, con ancho fijo durante el movimiento. `Q` cambia a
+  **Detalle 1600** (ancho fijo, disponible en las ocho vistas),
   **Fluido adaptativo** (480–1200 px en GPU), **Retina constante** (1600–2560 px)
   y regresa a Nítido. El modo Fluido busca 30 imágenes/s, sin garantizarlas.
 - Todos los modos conservan los efectos. En movimiento usan una muestra por
@@ -248,6 +249,8 @@ cargo run --release --offline -- --benchmark
 
 ## Cumplimiento de la rúbrica
 
+Ver [guion de presentación y evidencia por criterio](PRESENTACION.md).
+
 | Apartado | Implementación y evidencia |
 |---|---|
 | Complejidad (30, subjetivo) | 5,902 bloques: casco circular escalonado, mandíbulas, cabina lateral, antena, torreta, ventiladores, rampa, puerto, droide, Vader y dos soldados rebeldes con disparos. |
@@ -308,11 +311,15 @@ Dos soldados de bloques se ubican junto a la rampa lateral, separados del casco.
 Tienen cascos blancos con franja oscura, camisa azul grisácea, chaleco negro,
 cinturón, botas y bláster con mira. Reutilizan los materiales del diorama.
 
-**8** abre su cámara y reproduce `BLASTER FX.wav` una vez. Dentro de esta vista,
+**8** abre su cámara y reproduce `BLASTER FX.wav` una vez, acompañado por cuatro
+láseres: izquierda, derecha, izquierda, derecha según el encuadre inicial.
+Los ataques visuales comienzan a los 0.045, 0.275, 0.505 y 0.735 s del efecto;
+los proyectiles anteriores continúan su recorrido mientras sale el siguiente.
+Volver a pulsar **8** o su botón reinicia cámara, ráfaga y sonido. Dentro de esta vista,
 **.** (punto), decimal numérico o el botón **Disparar** alternan el soldado que
 lanza un proyectil rojo con destello en la boca del arma y `DISPARO FX.wav`.
-No hay disparos automáticos. Una nueva pulsación reinicia el disparo y su sonido;
-se mantiene un solo proyectil activo para limitar el costo y evitar superponer audio.
+El disparo manual interrumpe la ráfaga y usa un único proyectil. Una nueva
+pulsación de **.** reinicia el disparo manual y su sonido.
 Al terminar el efecto vuelve cantina. Cambiar de cámara cancela la animación.
 
 ![Soldados junto a la rampa](renders/rebeldes.png)

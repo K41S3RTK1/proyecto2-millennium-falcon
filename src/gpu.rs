@@ -219,15 +219,19 @@ impl Renderer {
             let loc = self.shader.get_shader_location(name);
             self.shader.set_shader_value(loc, vector(value));
         }
-        let (a, b, m, flash) = cfg.shot.segments();
-        for (name, v) in [("boltA", a), ("boltB", b), ("muzzle", m)] {
-            let loc = self.shader.get_shader_location(name);
-            self.shader.set_shader_value(loc, vector(v));
+        for (i, shot) in cfg.blaster_shots().iter().enumerate() {
+            let (a, b, m, flash) = shot.segments();
+            for (name, v) in [("boltA", a), ("boltB", b), ("muzzle", m)] {
+                let loc = self.shader.get_shader_location(&format!("{name}[{i}]"));
+                self.shader.set_shader_value(loc, vector(v));
+            }
+            for (name, v) in [("shotAge", shot.age), ("muzzleFlash", flash)] {
+                let loc = self.shader.get_shader_location(&format!("{name}[{i}]"));
+                self.shader.set_shader_value(loc, v);
+            }
         }
         for (name, v) in [
-            ("shotAge", cfg.shot.age),
             ("combatShotAge", cfg.combat.shot_age),
-            ("muzzleFlash", flash),
             ("flightProgress", cfg.flight.progress),
             ("flightBoost", cfg.flight.boost()),
             ("flightAge", cfg.flight.boost_age),
@@ -337,7 +341,7 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
     let mut renderer = Renderer::new(&mut window, &thread, scene)?;
     let mut failed = false;
     for index in 0..8 {
-        for variant in 0..8 {
+        for variant in 0..12 {
             let cfg = Settings {
                 width: 400,
                 height: 240,
@@ -348,6 +352,14 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
                 space: variant == 5,
                 flight: crate::flight::Flight::default(),
                 combat: crate::combat::Combat::default(),
+                burst: crate::blaster::Burst {
+                    age: if variant >= 8 {
+                        [0.07, 0.30, 0.54, 0.77][variant - 8]
+                    } else {
+                        -1.
+                    },
+                    ..Default::default()
+                },
                 shot: crate::blaster::Shot {
                     age: if variant >= 6 {
                         if variant == 6 { 0.03 } else { 0.19 }
@@ -380,6 +392,14 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
                 mean,
                 outliers
             );
+            if index == 7 && variant >= 8 {
+                crate::png::save(
+                    format!("/tmp/falcon-rafaga-{}.png", variant - 8),
+                    cfg.width,
+                    cfg.height,
+                    &gpu,
+                )?;
+            }
             // Bordes compartidos y redondeo f32 pueden seleccionar caras distintas.
             failed |= mean > 1.0 || outliers > 0.5;
             if index == 3 && variant <= 1 {
@@ -401,7 +421,7 @@ pub fn validate(scene: &Scene) -> Result<(), Box<dyn Error>> {
     if failed {
         Err("La comparación CPU/GPU excedió la tolerancia visual".into())
     } else {
-        println!("Validación CPU/GPU: 64 comparaciones aprobadas");
+        println!("Validación CPU/GPU: 96 comparaciones aprobadas");
         Ok(())
     }
 }
